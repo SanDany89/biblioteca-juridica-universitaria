@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biblioteca Jurídica Universitaria | Repositorio Oficial y Académico</title>
+  
+  <!-- Metadatos SEO -->
+  <meta name="description" content="Biblioteca Jurídica Universitaria para estudiantes de Derecho. Consulta la Constitución Política de los Estados Unidos Mexicanos (CPEUM), Constitución de Durango, leyes, códigos, jurisprudencia de la SCJN, machotes y PDFs compartidos.">
+  <meta name="keywords" content="Derecho, Biblioteca Jurídica, CPEUM, Constitución Durango, Victoria de Durango, SCJN, Jurisprudencia, Códigos, Leyes, Formatos Jurídicos, Apuntes de Derecho">
+  <meta name="author" content="Facultad de Derecho">
+  <meta name="theme-color" content="#0a1128">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Biblioteca Jurídica Universitaria">
+  <meta property="og:description" content="Repositorio jurídico moderno para estudiantes de Derecho. Normatividad federal, estatal de Durango y materiales de estudio.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Hojas de Estilo CSS -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+  <!-- 1. TOPBAR INSTITUCIONAL -->
+  <div class="topbar">
+    <div class="container topbar-content">
+      <div class="topbar-info">
+        <span class="topbar-item">🏛️ <strong>Facultad de Derecho</strong> • Repositorio Académico</span>
+        <span class="topbar-item">📍 Victoria de Durango, Dgo. | México</span>
+      </div>
+      <div class="topbar-user">
+        <div class="role-pill" id="role-switcher-btn" title="Haz clic para alternar entre modo Estudiante y Administrador">
+          <span id="current-role-label">🎓 Estudiante</span>
+          <span class="role-badge" style="font-size: 0.75rem;">(Cambiar Rol)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. HEADER Y MENÚ DE NAVEGACIÓN -->
+  <header class="site-header">
+    <div class="container header-container">
+      <!-- Logo y Nombre de la Biblioteca -->
+      <a href="#inicio" class="brand-link" data-view="inicio">
+        <div class="brand-logo-seal">⚖️</div>
+        <div class="brand-text">
+          <span class="brand-name">Biblioteca Jurídica</span>
+          <span class="brand-tagline">Universitaria</span>
+        </div>
+      </a>
+
+      <!-- Botón Menú Móvil -->
+      <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Abrir menú de navegación">
+        ☰
+      </button>
+
+      <!-- Menú de 10 Secciones Principales -->
+      <nav>
+        <ul class="nav-menu" id="main-nav-menu">
+          <li class="nav-item"><a href="#inicio" class="nav-link active" data-view="inicio">Inicio</a></li>
+          <li class="nav-item"><a href="#materias" class="nav-link" data-view="materias">Materias</a></li>
+          <li class="nav-item"><a href="#buscador" class="nav-link" data-view="buscador">Buscador</a></li>
+          <li class="nav-item"><a href="#leyes" class="nav-link" data-view="leyes">Leyes y Códigos</a></li>
+          <li class="nav-item"><a href="#jurisprudencia" class="nav-link" data-view="jurisprudencia">Jurisprudencia</a></li>
+          <li class="nav-item"><a href="#apuntes" class="nav-link" data-view="apuntes">Apuntes</a></li>
+          <li class="nav-item"><a href="#formatos" class="nav-link" data-view="formatos">Formatos</a></li>
+          <li class="nav-item"><a href="#estudiantes" class="nav-link" data-view="estudiantes">PDFs Alumnos</a></li>
+          <li class="nav-item"><a href="#fuentes" class="nav-link" data-view="fuentes">Fuentes Oficiales</a></li>
+          <li class="nav-item"><a href="#acerca" class="nav-link" data-view="acerca">Acerca de</a></li>
+          
+          <!-- Pestaña especial Administrador (se activa en modo admin) -->
+          <li class="nav-item" id="nav-item-admin" style="display: none;">
+            <a href="#admin" class="nav-link active-admin" data-view="admin">⚖️ Panel Admin</a>
+          </li>
+
+          <!-- Botón de Acción Directa -->
+          <li class="nav-item">
+            <button class="btn btn-upload-nav btn-sm" id="btn-header-upload">
+              <span>📤 Compartir PDF</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 3. CONTENEDOR PRINCIPAL DINÁMICO -->
+  <main id="app-main-content" class="main-content">
+    <!-- El contenido de las 10 secciones se renderiza dinámicamente mediante js/app.js -->
+  </main>
+
+  <!-- 4. FOOTER INSTITUCIONAL -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <!-- Columna 1: Brand e Información -->
+        <div class="footer-brand">
+          <h3>⚖️ Biblioteca Jurídica Universitaria</h3>
+          <p>
+            Plataforma académica y repositorio digital para estudiantes y docentes de la carrera de Derecho. Facilitamos la consulta de leyes federales de México y la legislación vigente en el Estado Libre y Soberano de Durango.
+          </p>
+          <div style="margin-top: 1rem; color: var(--color-gold); font-size: 0.85rem; font-weight: 600;">
+            🏛️ <em>Iustitia est constans et perpetua voluntas ius suum cuique tribuendi</em>
+          </div>
+        </div>
+
+        <!-- Columna 2: Navegación Rápida -->
+        <div class="footer-col">
+          <h4>Secciones</h4>
+          <ul class="footer-links">
+            <li><a href="#materias" data-view="materias">Biblioteca por Materias</a></li>
+            <li><a href="#buscador" data-view="buscador">Buscador General</a></li>
+            <li><a href="#leyes" data-view="leyes">Leyes y Códigos</a></li>
+            <li><a href="#jurisprudencia" data-view="jurisprudencia">Jurisprudencia SCJN</a></li>
+            <li><a href="#formatos" data-view="formatos">Formatos y Machotes</a></li>
+          </ul>
+        </div>
+
+        <!-- Columna 3: Fuentes y Normatividad -->
+        <div class="footer-col">
+          <h4>Normatividad</h4>
+          <ul class="footer-links">
+            <li><a href="#leyes" data-view="leyes">CPEUM (Constitución Federal)</a></li>
+            <li><a href="#leyes" data-view="leyes">Constitución de Durango</a></li>
+            <li><a href="#leyes" data-view="leyes">Código Penal de Durango</a></li>
+            <li><a href="#leyes" data-view="leyes">Código Civil de Durango</a></li>
+            <li><a href="#fuentes" data-view="fuentes">Diario Oficial (DOF)</a></li>
+            <li><a href="#fuentes" data-view="fuentes">Periódico Oficial (POE)</a></li>
+          </ul>
+        </div>
+
+        <!-- Columna 4: Comunidad Estudiantil -->
+        <div class="footer-col">
+          <h4>Comunidad</h4>
+          <ul class="footer-links">
+            <li><a href="#estudiantes" data-view="estudiantes">PDFs de Estudiantes</a></li>
+            <li><a href="#apuntes" data-view="apuntes">Guías y Cuadros</a></li>
+            <li><a href="#acerca" data-view="acerca">Manual de Administración</a></li>
+            <li><a href="#acerca" data-view="acerca">Aviso de Responsabilidad</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Barra de Derechos y Créditos -->
+      <div class="footer-bottom">
+        <div>
+          © 2026 Biblioteca Jurídica Universitaria • Repositorio Académico de Derecho.
+        </div>
+        <div>
+          Desarrollado para estudiantes y docentes universitarios • Victoria de Durango, Dgo.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts Modulares JS (ES6) -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

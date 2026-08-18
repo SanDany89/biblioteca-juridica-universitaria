@@ -1,0 +1,123 @@
+/* ==========================================================================
+   RESPONSIVE DESIGN & MEDIA QUERIES
+   ========================================================================== */
+
+@media (max-width: 1080px) {
+  .nav-menu {
+    gap: 0.15rem;
+  }
+  
+  .nav-link {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.84rem;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero-quick-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer-modal-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .viewer-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Mobile Menu */
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .nav-menu {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    right: 0;
+    background: white;
+    flex-direction: column;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 2px solid var(--color-gold);
+    box-shadow: var(--shadow-xl);
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
+    display: none;
+    z-index: 99;
+  }
+
+  .nav-menu.mobile-open {
+    display: flex;
+  }
+
+  .nav-item {
+    width: 100%;
+  }
+
+  .nav-link {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  /* Hero Section Mobile */
+  .hero-section {
+    padding: 3rem 0 2.5rem 0;
+  }
+
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .hero-title .gold-accent {
+    font-size: 1.35rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.98rem;
+  }
+
+  /* Search Widget Mobile */
+  .search-filters-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Grids Mobile */
+  .documents-grid, .subjects-grid, .sources-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .topbar-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .viewer-modal-dialog {
+    max-height: 96vh;
+    border-radius: var(--radius-md);
+  }
+
+  .pdf-embed-wrapper {
+    height: 400px;
+  }
+}

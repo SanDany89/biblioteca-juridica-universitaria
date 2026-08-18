@@ -1,0 +1,93 @@
+/**
+ * search.js - Motor de Búsqueda y Filtrado Jurídico Multicriterio
+ */
+
+export class LegalSearchEngine {
+  static filterDocuments(documents, filters = {}) {
+    const {
+      query = '',
+      subjectId = 'all',
+      docType = 'all',
+      verificationStatus = 'all',
+      level = 'all',
+      sortBy = 'recent'
+    } = filters;
+
+    const normalizedQuery = query.trim().toLowerCase();
+
+    const filtered = documents.filter(doc => {
+      // 1. Filtro de Texto (Nombre, Autor, Materia, Descripción, Palabras Clave, Fuente)
+      if (normalizedQuery) {
+        const titleMatch = (doc.title || '').toLowerCase().includes(normalizedQuery);
+        const authorMatch = (doc.author || '').toLowerCase().includes(normalizedQuery);
+        const subjectMatch = (doc.subject || '').toLowerCase().includes(normalizedQuery);
+        const descMatch = (doc.description || '').toLowerCase().includes(normalizedQuery);
+        const sourceMatch = (doc.source || '').toLowerCase().includes(normalizedQuery);
+        const keywordsMatch = Array.isArray(doc.keywords) 
+          ? doc.keywords.some(k => k.toLowerCase().includes(normalizedQuery))
+          : (doc.keywords || '').toLowerCase().includes(normalizedQuery);
+        const articlesMatch = Array.isArray(doc.summaryArticles)
+          ? doc.summaryArticles.some(a => (a.title + ' ' + a.text + ' ' + a.num).toLowerCase().includes(normalizedQuery))
+          : false;
+
+        const matchesAny = titleMatch || authorMatch || subjectMatch || descMatch || sourceMatch || keywordsMatch || articlesMatch;
+        if (!matchesAny) return false;
+      }
+
+      // 2. Filtro por Materia
+      if (subjectId && subjectId !== 'all') {
+        if (doc.subjectId !== subjectId && doc.subject.toLowerCase() !== subjectId.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 3. Filtro por Tipo de Documento
+      if (docType && docType !== 'all') {
+        if (!doc.docType.toLowerCase().includes(docType.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // 4. Filtro por Estado de Verificación
+      if (verificationStatus && verificationStatus !== 'all') {
+        if (doc.verificationStatus !== verificationStatus) {
+          return false;
+        }
+      }
+
+      // 5. Filtro por Ámbito / Nivel
+      if (level && level !== 'all') {
+        if (level === 'durango' && !(doc.level || '').toLowerCase().includes('durango') && !(doc.title || '').toLowerCase().includes('durango')) {
+          return false;
+        }
+        if (level === 'federal' && !(doc.level || '').toLowerCase().includes('nacional') && !(doc.level || '').toLowerCase().includes('federal')) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Ordenamiento
+    return filtered.sort((a, b) => {
+      if (sortBy === 'verified-first') {
+        if (a.isVerified && !b.isVerified) return -1;
+        if (!a.isVerified && b.isVerified) return 1;
+        return new Date(b.publishDate || 0) - new Date(a.publishDate || 0);
+      }
+      if (sortBy === 'recent') {
+        return new Date(b.publishDate || 0) - new Date(a.publishDate || 0);
+      }
+      if (sortBy === 'oldest') {
+        return new Date(a.publishDate || 0) - new Date(b.publishDate || 0);
+      }
+      if (sortBy === 'title-asc') {
+        return a.title.localeCompare(b.title);
+      }
+      if (sortBy === 'title-desc') {
+        return b.title.localeCompare(a.title);
+      }
+      return 0;
+    });
+  }
+}
