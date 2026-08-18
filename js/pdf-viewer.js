@@ -173,14 +173,19 @@ export class DocumentViewer {
   static renderDocumentBody(doc, container) {
     container.innerHTML = '';
 
-    // Caso 1: Archivo PDF subido con base64/blob
-    if (doc.fileBlobData) {
+    const pdfSrc = doc.fileBlobData || 
+      (doc.downloadUrl && doc.downloadUrl !== '#' ? doc.downloadUrl : null) ||
+      (doc.url && doc.url !== '#' ? doc.url : null);
+
+    // Caso 1: Archivo PDF subido (Supabase Storage o Base64 local)
+    if (pdfSrc) {
       container.innerHTML = `
         <div class="pdf-embed-wrapper">
           <div class="pdf-toolbar-info">
-            <span>📄 Archivo PDF: <strong>${doc.fileName || doc.title}</strong> (${doc.fileSize})</span>
+            <span>📄 Archivo PDF: <strong>${doc.fileName || doc.title}</strong> (${doc.fileSize || 'PDF'})</span>
+            <a href="${pdfSrc}" target="_blank" rel="noopener noreferrer" class="link-official" style="margin-left: auto;">🔗 Abrir en pestaña nueva ↗</a>
           </div>
-          <iframe src="${doc.fileBlobData}" class="pdf-iframe-view" title="${doc.title}"></iframe>
+          <iframe src="${pdfSrc}" class="pdf-iframe-view" title="${doc.title}"></iframe>
         </div>
       `;
       return;
@@ -295,22 +300,21 @@ export class DocumentViewer {
   static triggerDownload() {
     if (!this.currentDoc) return;
 
-    // Si tiene archivo PDF real cargado
-    if (this.currentDoc.fileBlobData) {
+    const pdfUrl = this.currentDoc.fileBlobData || 
+      (this.currentDoc.downloadUrl && this.currentDoc.downloadUrl !== '#' ? this.currentDoc.downloadUrl : null) ||
+      (this.currentDoc.url && this.currentDoc.url !== '#' ? this.currentDoc.url : null) ||
+      (this.currentDoc.officialUrl && this.currentDoc.officialUrl !== '#' ? this.currentDoc.officialUrl : null);
+
+    // Si tiene archivo PDF real cargado o URL de descarga
+    if (pdfUrl) {
       const a = document.createElement('a');
-      a.href = this.currentDoc.fileBlobData;
+      a.href = pdfUrl;
+      a.target = '_blank';
       a.download = this.currentDoc.fileName || `${this.currentDoc.title}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.showToast?.(`Descargando ${this.currentDoc.fileName || 'documento.pdf'}...`, 'success');
-      return;
-    }
-
-    // Si tiene URL oficial de descarga externa
-    if (this.currentDoc.officialUrl && this.currentDoc.officialUrl.endsWith('.pdf')) {
-      window.open(this.currentDoc.officialUrl, '_blank');
-      window.showToast?.('Abriendo documento PDF oficial...', 'info');
+      window.showToast?.(`Iniciando descarga de ${this.currentDoc.fileName || 'documento.pdf'}...`, 'success');
       return;
     }
 

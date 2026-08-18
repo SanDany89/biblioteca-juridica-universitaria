@@ -36,7 +36,7 @@ class LegalLibraryApp {
 
     // 3. Vincular navegación y eventos
     this.bindNavigationEvents();
-    this.bindRoleSwitcher();
+    this.bindAdminAuth();
     this.bindGlobalEvents();
 
     // 4. Cargar vista inicial
@@ -105,37 +105,185 @@ class LegalLibraryApp {
     });
   }
 
-  bindRoleSwitcher() {
-    const roleBtn = document.getElementById('role-switcher-btn');
-    const roleLabel = document.getElementById('current-role-label');
+  bindAdminAuth() {
+    this.createAdminLoginModalDOM();
+
+    const loginTriggerBtn = document.getElementById('btn-admin-login-trigger');
+    const logoutBtn = document.getElementById('btn-admin-logout');
+    const adminSessionPill = document.getElementById('admin-session-pill');
+    const adminUserEmail = document.getElementById('admin-user-email');
     const adminNavLi = document.getElementById('nav-item-admin');
+    const uploadNavLi = document.getElementById('nav-item-upload');
 
+    // Escuchar cambios de autenticación en Supabase Auth
     auth.onAuthStateChanged((user) => {
-      if (roleLabel) {
-        roleLabel.innerHTML = user.role === 'admin' 
-          ? '⚖️ Administrador' 
-          : '🎓 Estudiante';
-      }
+      const isAdmin = auth.isAdmin();
 
-      // Mostrar/ocultar acceso al panel administrativo en el menú
-      if (adminNavLi) {
-        adminNavLi.style.display = user.role === 'admin' ? 'block' : 'none';
-      }
+      if (loginTriggerBtn) loginTriggerBtn.classList.toggle('hidden', isAdmin);
+      if (adminSessionPill) adminSessionPill.classList.toggle('hidden', !isAdmin);
+      if (adminUserEmail) adminUserEmail.textContent = user.email ? `⚖️ ${user.email}` : '⚖️ Admin';
+      if (adminNavLi) adminNavLi.style.display = isAdmin ? 'block' : 'none';
+      if (uploadNavLi) uploadNavLi.style.display = isAdmin ? 'block' : 'none';
 
-      // Refrescar vista actual para actualizar permisos visuales
+      // Refrescar vista actual para reflejar permisos
       this.renderCurrentView();
     });
 
-    roleBtn?.addEventListener('click', () => {
-      const newRole = auth.isAdmin() ? 'student' : 'admin';
-      auth.setRole(newRole);
-      window.showToast(
-        newRole === 'admin' 
-          ? 'Modo Administrador activado. Ahora tienes acceso a revisión, edición y gestión.' 
-          : 'Modo Estudiante activado. Vista pública y envío de materiales.',
-        'info'
-      );
+    // Abrir modal de Login
+    loginTriggerBtn?.addEventListener('click', () => {
+      this.openAdminLoginModal();
     });
+
+    window.addEventListener('openAdminLoginModal', () => {
+      this.openAdminLoginModal();
+    });
+
+    // Cerrar Sesión
+    logoutBtn?.addEventListener('click', async () => {
+      await auth.logout();
+      window.showToast('Sesión de administrador finalizada correctamente.', 'info');
+      if (this.currentView === 'admin') {
+        this.navigate('inicio');
+      }
+    });
+  }
+
+  createAdminLoginModalDOM() {
+    if (document.getElementById('admin-login-modal')) return;
+
+    const modalHTML = `
+      <div id="admin-login-modal" class="viewer-modal-backdrop" aria-hidden="true">
+        <div class="viewer-modal-dialog login-modal-dialog">
+          <div class="viewer-modal-header">
+            <div class="viewer-header-info">
+              <span class="badge badge-admin">🔐 Autenticación Supabase</span>
+              <h2 class="viewer-title">Acceso Administrativo</h2>
+              <p class="modal-subtitle">Panel exclusivo para administradores y docentes autorizados.</p>
+            </div>
+            <button id="login-modal-close" class="btn-close-modal">✕</button>
+          </div>
+
+          <form id="admin-login-form" class="modal-form-body">
+            <div class="login-error-msg" id="login-error-msg"></div>
+
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label for="login-email" class="form-label">Correo Electrónico <span class="req">*</span></label>
+                <input type="email" id="login-email" class="form-input" placeholder="admin@derecho.edu.mx" required autocomplete="username">
+              </div>
+
+              <div class="form-group full-width">
+                <label for="login-password" class="form-label">Contraseña <span class="req">*</span></label>
+                <input type="password" id="login-password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+              </div>
+            </div>
+
+            <div class="alert alert-info" style="margin-top: 1rem; font-size: 0.82rem;">
+              <span class="alert-icon">ℹ️</span>
+              <div class="alert-content">
+                <strong>Estudiantes y Visitantes:</strong>
+                <p>No necesitan iniciar sesión para consultar leyes, jurisprudencias, formatos o descargar archivos PDF.</p>
+              </div>
+            </div>
+
+            <div class="modal-form-footer">
+              <button type="button" id="login-btn-cancel" class="btn btn-secondary">Cancelar</button>
+              <button type="submit" id="login-btn-submit" class="btn btn-gold">
+                <span>🔓 Iniciar Sesión</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Eventos del modal de login
+    const modal = document.getElementById('admin-login-modal');
+    const closeBtn = document.getElementById('login-modal-close');
+    const cancelBtn = document.getElementById('login-btn-cancel');
+    const form = document.getElementById('admin-login-form');
+
+    const closeModal = () => this.closeAdminLoginModal();
+    closeBtn?.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await this.handleAdminLoginSubmit();
+    });
+  }
+
+  openAdminLoginModal() {
+    const modal = document.getElementById('admin-login-modal');
+    const errorEl = document.getElementById('login-error-msg');
+    if (errorEl) {
+      errorEl.textContent = '';
+      errorEl.classList.remove('visible');
+    }
+    if (modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => document.getElementById('login-email')?.focus(), 100);
+    }
+  }
+
+  closeAdminLoginModal() {
+    const modal = document.getElementById('admin-login-modal');
+    if (modal) {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      document.getElementById('admin-login-form')?.reset();
+    }
+  }
+
+  async handleAdminLoginSubmit() {
+    const email = document.getElementById('login-email')?.value.trim();
+    const password = document.getElementById('login-password')?.value;
+    const errorEl = document.getElementById('login-error-msg');
+    const submitBtn = document.getElementById('login-btn-submit');
+
+    if (!email || !password) {
+      if (errorEl) {
+        errorEl.textContent = 'Por favor ingresa tu correo y contraseña.';
+        errorEl.classList.add('visible');
+      }
+      return;
+    }
+
+    try {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>⏳ Autenticando...</span>';
+      }
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.classList.remove('visible');
+      }
+
+      await auth.login(email, password);
+
+      this.closeAdminLoginModal();
+      window.showToast('¡Sesión de administrador iniciada con éxito!', 'success');
+      this.navigate('admin');
+    } catch (err) {
+      console.error('Fallo de inicio de sesión:', err);
+      if (errorEl) {
+        errorEl.textContent = err.message || 'Credenciales inválidas. Verifica tu correo y contraseña.';
+        errorEl.classList.add('visible');
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>🔓 Iniciar Sesión</span>';
+      }
+    }
   }
 
   bindGlobalEvents() {
@@ -247,9 +395,15 @@ class LegalLibraryApp {
             <button class="btn btn-gold btn-lg" id="btn-hero-explore">
               <span>🔍 Explorar Biblioteca</span>
             </button>
-            <button class="btn btn-outline btn-lg" style="color: white; border-color: rgba(255,255,255,0.4);" id="btn-hero-upload">
-              <span>📤 Compartir un PDF</span>
-            </button>
+            ${auth.isAdmin() ? `
+              <button class="btn btn-outline btn-lg" style="color: white; border-color: rgba(255,255,255,0.4);" id="btn-hero-upload">
+                <span>📤 Subir PDF a Supabase</span>
+              </button>
+            ` : `
+              <button class="btn btn-outline btn-lg" style="color: white; border-color: rgba(255,255,255,0.4);" id="btn-hero-leyes">
+                <span>📜 Leyes y Códigos</span>
+              </button>
+            `}
           </div>
 
           <!-- Métricas del Hero -->
@@ -268,7 +422,7 @@ class LegalLibraryApp {
             </div>
             <div class="stat-pill">
               <span class="stat-num">${stats.studentUploads}</span>
-              <span class="stat-label">Aportes Alumnos</span>
+              <span class="stat-label">Aportes Supabase</span>
             </div>
           </div>
         </div>
@@ -322,18 +476,28 @@ class LegalLibraryApp {
         </div>
       </section>
 
-      <!-- SECCIÓN CALL TO ACTION: APORTE ESTUDIANTIL -->
+      <!-- SECCIÓN CALL TO ACTION -->
       <section class="container" style="margin-top: 4.5rem;">
         <div class="about-card" style="background: linear-gradient(135deg, #1c2d5a, #0a1128); color: white; border: 2px solid var(--color-gold);">
           <div style="max-width: 750px;">
-            <span class="badge badge-verified" style="margin-bottom: 0.75rem;">🎓 Comunidad Estudiantil</span>
-            <h3 style="color: white; font-size: 1.7rem; margin-bottom: 0.75rem;">¿Tienes apuntes o esquemas jurídicos útiles?</h3>
+            <span class="badge badge-verified" style="margin-bottom: 0.75rem;">🏛️ Repositorio Académico Digital</span>
+            <h3 style="color: white; font-size: 1.7rem; margin-bottom: 0.75rem;">
+              ${auth.isAdmin() ? 'Panel de Administración y Publicación' : 'Consulta libre para estudiantes de Derecho'}
+            </h3>
             <p style="color: rgba(255,255,255,0.85); margin-bottom: 1.5rem;">
-              Comparte tus documentos con tus compañeros de la carrera de Derecho. Todos los archivos son revisados por el comité académico antes de recibir la insignia oficial de <strong>Material verificado</strong>.
+              ${auth.isAdmin() 
+                ? 'Como administrador puedes subir nuevos archivos PDF a Supabase Storage, moderar la cola de revisión y registrar nuevo material jurídico.' 
+                : 'Accede a la legislación federal de México, leyes vigentes de Durango, criterios de la SCJN y machotes para tu formación académica.'}
             </p>
-            <button class="btn btn-gold btn-lg" id="btn-cta-upload">
-              <span>📤 Subir mi PDF ahora</span>
-            </button>
+            ${auth.isAdmin() ? `
+              <button class="btn btn-gold btn-lg" id="btn-cta-upload">
+                <span>📤 Subir nuevo PDF a Supabase</span>
+              </button>
+            ` : `
+              <button class="btn btn-gold btn-lg" id="btn-cta-explore">
+                <span>🔍 Explorar Todo el Catálogo</span>
+              </button>
+            `}
           </div>
         </div>
       </section>
@@ -341,8 +505,10 @@ class LegalLibraryApp {
 
     // Eventos de la vista de Inicio
     document.getElementById('btn-hero-explore')?.addEventListener('click', () => this.navigate('buscador'));
+    document.getElementById('btn-hero-leyes')?.addEventListener('click', () => this.navigate('leyes'));
     document.getElementById('btn-hero-upload')?.addEventListener('click', () => StudentManager.open());
     document.getElementById('btn-cta-upload')?.addEventListener('click', () => StudentManager.open());
+    document.getElementById('btn-cta-explore')?.addEventListener('click', () => this.navigate('buscador'));
     document.getElementById('btn-view-all-subjects')?.addEventListener('click', () => this.navigate('materias'));
     document.getElementById('btn-view-all-docs')?.addEventListener('click', () => this.navigate('buscador'));
 
@@ -701,7 +867,9 @@ class LegalLibraryApp {
             <h2 class="section-title">📚 Apuntes y Guías de Estudio</h2>
             <p class="section-subtitle">Materiales didácticos, cuadros sinópticos y resúmenes de cátedra para reforzar tu aprendizaje.</p>
           </div>
-          <button class="btn btn-gold btn-sm" id="btn-share-notes">📤 Compartir Guía o Apunte</button>
+          ${auth.isAdmin() ? `
+            <button class="btn btn-gold btn-sm" id="btn-share-notes">📤 Subir Guía o Apunte (Admin)</button>
+          ` : ''}
         </div>
 
         <div class="documents-grid">
@@ -748,49 +916,45 @@ class LegalLibraryApp {
   }
 
   /* ==========================================================================
-     VISTA 8: PDFS COMPARTIDOS POR ESTUDIANTES
+     VISTA 8: REPOSITORIO DE DOCUMENTOS Y PDFS ACADÉMICOS
      ========================================================================== */
   async renderEstudiantes(container) {
     const allDocs = await db.getAllDocuments();
-    const currentUser = auth.getCurrentUser();
+    const isAdmin = auth.isAdmin();
 
-    // Documentos aportados por estudiantes
+    // Documentos colaborativos / Supabase / Aportes
     const studentDocs = allDocs.filter(d => 
-      d.docType.includes('Estudiante') || d.studentSubmitter || d.verificationStatus === 'Pendiente de revisión'
-    );
-
-    // Mis aportes
-    const myDocs = allDocs.filter(d => 
-      (d.studentSubmitter && d.studentSubmitter.toLowerCase() === currentUser.name.toLowerCase()) ||
-      (d.studentEmail && d.studentEmail === currentUser.email)
+      d.docType.includes('Estudiante') || d.docType.includes('Compartido') || d.studentSubmitter || d.isSupabase
     );
 
     container.innerHTML = `
       <div class="container" style="padding-top: 2rem;">
         <div class="section-header">
           <div class="section-title-wrap">
-            <h2 class="section-title">🎓 PDFs Compartidos por Estudiantes</h2>
-            <p class="section-subtitle">Comunidad de aprendizaje: envía tus aportes o consulta documentos compartidos por otros alumnos.</p>
+            <h2 class="section-title">🎓 Documentos y PDFs Académicos</h2>
+            <p class="section-subtitle">Repositorio de consulta y descarga libre de tesis, compendios y materiales jurídicos en formato digital.</p>
           </div>
-          <button class="btn btn-gold" id="btn-student-view-upload">
-            <span>📤 Compartir un nuevo PDF</span>
-          </button>
+          ${isAdmin ? `
+            <button class="btn btn-gold" id="btn-student-view-upload">
+              <span>📤 Subir Nuevo PDF (Admin)</span>
+            </button>
+          ` : ''}
         </div>
 
-        <!-- Información de Verificación -->
+        <!-- Información de Acceso Libre -->
         <div class="alert alert-info">
-          <span class="alert-icon">🛡️</span>
+          <span class="alert-icon">📖</span>
           <div class="alert-content">
-            <strong>Transparencia y Moderación:</strong>
-            <p>Los archivos que envíes inician con el estado <strong>🟡 Pendiente de revisión</strong>. Cuando el administrador los verifique, recibirán la insignia dorada <strong>🛡️ Material verificado</strong>.</p>
+            <strong>Acceso Libre y Gratuito para Estudiantes:</strong>
+            <p>Todos los documentos y archivos PDF están disponibles para lectura completa en el visor interactivo y descarga directa sin necesidad de registro ni restricciones.</p>
           </div>
         </div>
 
-        <!-- Documentos de Estudiantes -->
+        <!-- Documentos -->
         <div class="documents-grid">
           ${studentDocs.length > 0 
             ? studentDocs.map(d => this.renderDocumentCardHTML(d)).join('')
-            : '<div class="alert alert-info" style="grid-column: 1/-1;"><p>Aún no hay PDFs compartidos por estudiantes. ¡Sé el primero en compartir!</p></div>'
+            : '<div class="alert alert-info" style="grid-column: 1/-1;"><p>No hay PDFs adicionales actualmente en esta sección. Todo el cuerpo normativo, leyes, códigos y formatos están disponibles en sus respectivas secciones.</p></div>'
           }
         </div>
       </div>

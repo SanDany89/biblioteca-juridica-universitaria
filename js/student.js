@@ -1,6 +1,7 @@
 /**
- * student.js - Módulo de Envío y Gestión de PDFs por Estudiantes
- * Permite a los estudiantes subir documentos, registrar metadatos y dar seguimiento a sus envíos.
+ * student.js - Módulo de Subida y Gestión de Documentos PDF
+ * Protegido: Solo administradores y docentes autenticados pueden subir archivos PDF.
+ * Los archivos se suben a Supabase Storage y se registran en la tabla 'documentos'.
  */
 
 import { db } from './db.js';
@@ -11,7 +12,6 @@ export class StudentManager {
     this.createUploadModalDOM();
     this.bindEvents();
     this.selectedFile = null;
-    this.fileBase64 = null;
   }
 
   static createUploadModalDOM() {
@@ -23,9 +23,9 @@ export class StudentManager {
           <!-- Header -->
           <div class="viewer-modal-header">
             <div class="viewer-header-info">
-              <span class="badge badge-student">🎓 Aporte Universitario</span>
-              <h2 class="viewer-title">Compartir Documento PDF con la Comunidad</h2>
-              <p class="modal-subtitle">Contribuye con apuntes, esquemas, tesis o materiales para apoyar a tus compañeros de Derecho.</p>
+              <span class="badge badge-admin">⚖️ Repositorio Oficial Supabase</span>
+              <h2 class="viewer-title">Subir Documento PDF a la Biblioteca</h2>
+              <p class="modal-subtitle">Publica leyes, tesis, apuntes o formatos para toda la comunidad académica de Derecho.</p>
             </div>
             <button id="upload-modal-close" class="btn-close-modal">✕</button>
           </div>
@@ -33,10 +33,10 @@ export class StudentManager {
           <!-- Formulario -->
           <form id="student-upload-form" class="modal-form-body">
             <div class="alert alert-info">
-              <span class="alert-icon">ℹ️</span>
+              <span class="alert-icon">☁️</span>
               <div class="alert-content">
-                <strong>Aviso de Moderación Académica:</strong>
-                <p>Todos los documentos enviados inician con el estado <span class="badge-inline badge-pending">Pendiente de revisión</span>. El comité administrador verificará la calidad, pertinencia jurídica y derechos de autor antes de asignarle la insignia <span class="badge-inline badge-verified">Material verificado</span>.</p>
+                <strong>Almacenamiento en la Nube (Supabase):</strong>
+                <p>El archivo PDF se subirá directamente a <code>Supabase Storage (documentos-pdf)</code> y los metadatos quedarán registrados en la tabla <code>documentos</code>.</p>
               </div>
             </div>
 
@@ -44,7 +44,7 @@ export class StudentManager {
               <!-- Título -->
               <div class="form-group full-width">
                 <label for="upload-title" class="form-label">Título del Documento <span class="req">*</span></label>
-                <input type="text" id="upload-title" class="form-input" placeholder="Ej: Resumen de Derecho Procesal Penal y Etapas del Juicio Oral" required>
+                <input type="text" id="upload-title" class="form-input" placeholder="Ej: Código Penal del Estado de Durango o Guía de Juicio de Amparo" required>
               </div>
 
               <!-- Materia -->
@@ -57,26 +57,48 @@ export class StudentManager {
 
               <!-- Autor -->
               <div class="form-group">
-                <label for="upload-author" class="form-label">Autor(es) del Documento <span class="req">*</span></label>
-                <input type="text" id="upload-author" class="form-input" placeholder="Ej: Juan Pérez / Cátedra de Derecho Civil" required>
+                <label for="upload-author" class="form-label">Autor(es) o Emisor <span class="req">*</span></label>
+                <input type="text" id="upload-author" class="form-input" placeholder="Ej: H. Congreso de Durango / Dr. García" required>
+              </div>
+
+              <!-- Categoría / Tipo -->
+              <div class="form-group">
+                <label for="upload-doctype" class="form-label">Categoría / Tipo de Documento <span class="req">*</span></label>
+                <select id="upload-doctype" class="form-select" required>
+                  <option value="Leyes y Códigos">📜 Leyes y Códigos</option>
+                  <option value="Jurisprudencia">🏛️ Jurisprudencia y Tesis</option>
+                  <option value="Apuntes y Guías">📚 Apuntes y Guías Académicas</option>
+                  <option value="Formatos y Machotes">📝 Formatos y Machotes</option>
+                  <option value="PDF Compartido" selected>📑 Documento / PDF General</option>
+                </select>
+              </div>
+
+              <!-- Estado de Verificación -->
+              <div class="form-group">
+                <label for="upload-status" class="form-label">Estado de Publicación</label>
+                <select id="upload-status" class="form-select">
+                  <option value="Material verificado" selected>🛡️ Material verificado (Publicar de inmediato con sello)</option>
+                  <option value="Aprobado">🟢 Aprobado (Público)</option>
+                  <option value="Pendiente de revisión">🟡 Pendiente de revisión</option>
+                </select>
               </div>
 
               <!-- Fuente / Referencia -->
               <div class="form-group full-width">
-                <label for="upload-source" class="form-label">Fuente o Referencia de Dónde se Obtuvo <span class="req">*</span></label>
-                <input type="text" id="upload-source" class="form-input" placeholder="Ej: Notas de clase Semestre 2024-A, Libro del Dr. García Maynez, o Código Penal de Durango" required>
+                <label for="upload-source" class="form-label">Fuente o Referencia Oficial <span class="req">*</span></label>
+                <input type="text" id="upload-source" class="form-input" placeholder="Ej: Periódico Oficial de Durango, DOF, SCJN o Cátedra Universitaria" required>
               </div>
 
               <!-- Palabras Clave -->
               <div class="form-group full-width">
                 <label for="upload-keywords" class="form-label">Palabras Clave (separadas por comas)</label>
-                <input type="text" id="upload-keywords" class="form-input" placeholder="Ej: Amparo, Suspensión, Derechos Humanos, Durango, Artículos">
+                <input type="text" id="upload-keywords" class="form-input" placeholder="Ej: Durango, Penal, Amparo, Artículos, Procedimientos">
               </div>
 
               <!-- Descripción -->
               <div class="form-group full-width">
                 <label for="upload-desc" class="form-label">Descripción del Contenido <span class="req">*</span></label>
-                <textarea id="upload-desc" class="form-textarea" rows="3" placeholder="Describe brevemente qué temas abarca este documento, para qué materias sirve y cómo puede ayudar a otros estudiantes..." required></textarea>
+                <textarea id="upload-desc" class="form-textarea" rows="3" placeholder="Describe brevemente el contenido de este documento..." required></textarea>
               </div>
 
               <!-- Subida de Archivo PDF -->
@@ -87,7 +109,7 @@ export class StudentManager {
                   <div class="drop-zone-content" id="drop-zone-content">
                     <span class="drop-icon">📄</span>
                     <p class="drop-text"><strong>Haz clic para seleccionar</strong> o arrastra tu archivo PDF aquí</p>
-                    <small class="drop-hint">Formato PDF (Máx. 25 MB)</small>
+                    <small class="drop-hint">Formato PDF (Máx. 50 MB) • Subida directa a Supabase Storage</small>
                   </div>
                   <div class="file-preview-card hidden" id="file-preview-card">
                     <span class="file-preview-icon">📑</span>
@@ -95,19 +117,9 @@ export class StudentManager {
                       <strong id="preview-file-name">documento.pdf</strong>
                       <span id="preview-file-size" class="text-muted">0 KB</span>
                     </div>
-                    <button type="button" id="btn-remove-file" class="btn-remove-file" title="Eliminar archivo">✕</button>
+                    <button type="button" id="btn-remove-file" class="btn-remove-file" title="Quitar archivo">✕</button>
                   </div>
                 </div>
-              </div>
-
-              <!-- Datos del Estudiante -->
-              <div class="form-group">
-                <label for="upload-student-name" class="form-label">Tu Nombre o Seudónimo</label>
-                <input type="text" id="upload-student-name" class="form-input" placeholder="Nombre del estudiante">
-              </div>
-              <div class="form-group">
-                <label for="upload-student-email" class="form-label">Correo Institucional / Contacto</label>
-                <input type="email" id="upload-student-email" class="form-input" placeholder="correo@alumnos.edu.mx">
               </div>
             </div>
 
@@ -115,7 +127,7 @@ export class StudentManager {
             <div class="modal-form-footer">
               <button type="button" id="upload-btn-cancel" class="btn btn-secondary">Cancelar</button>
               <button type="submit" id="upload-btn-submit" class="btn btn-gold">
-                <span>🚀 Enviar a Revisión</span>
+                <span>🚀 Subir a Supabase</span>
               </button>
             </div>
           </form>
@@ -191,19 +203,12 @@ export class StudentManager {
       return;
     }
 
-    if (file.size > 30 * 1024 * 1024) {
-      window.showToast?.('El archivo excede el límite recomendado de 30MB', 'warning');
+    if (file.size > 50 * 1024 * 1024) {
+      window.showToast?.('El archivo excede el límite recomendado de 50MB', 'warning');
       return;
     }
 
     this.selectedFile = file;
-
-    // Convertir a Base64 / Blob para persistencia en IndexedDB
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      this.fileBase64 = e.target.result;
-    };
-    reader.readAsDataURL(file);
 
     // Actualizar UI
     const dropContent = document.getElementById('drop-zone-content');
@@ -220,7 +225,6 @@ export class StudentManager {
 
   static clearSelectedFile() {
     this.selectedFile = null;
-    this.fileBase64 = null;
     const fileInput = document.getElementById('upload-file-input');
     if (fileInput) fileInput.value = '';
 
@@ -231,6 +235,13 @@ export class StudentManager {
   }
 
   static async open(preselectedSubject = '') {
+    // Protección estricta: Solo administradores autenticados
+    if (!auth.isAdmin()) {
+      window.showToast?.('Debes iniciar sesión como Administrador para subir documentos PDF.', 'warning');
+      window.dispatchEvent(new CustomEvent('openAdminLoginModal'));
+      return;
+    }
+
     const modal = document.getElementById('student-upload-modal');
     if (!modal) return;
 
@@ -251,18 +262,6 @@ export class StudentManager {
       });
     }
 
-    // Prellenar datos de usuario si está logueado
-    const currentUser = auth.getCurrentUser();
-    const studentNameInput = document.getElementById('upload-student-name');
-    const studentEmailInput = document.getElementById('upload-student-email');
-
-    if (studentNameInput && !studentNameInput.value) {
-      studentNameInput.value = currentUser.name || '';
-    }
-    if (studentEmailInput && !studentEmailInput.value) {
-      studentEmailInput.value = currentUser.email || '';
-    }
-
     modal.classList.add('active');
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -280,14 +279,19 @@ export class StudentManager {
   }
 
   static async handleSubmit() {
+    if (!auth.isAdmin()) {
+      window.showToast?.('Acceso denegado. Se requiere sesión de Administrador.', 'error');
+      return;
+    }
+
     const title = document.getElementById('upload-title')?.value.trim();
     const materiaSelect = document.getElementById('upload-materia');
     const author = document.getElementById('upload-author')?.value.trim();
+    const docType = document.getElementById('upload-doctype')?.value || 'PDF Compartido';
+    const status = document.getElementById('upload-status')?.value || 'Material verificado';
     const source = document.getElementById('upload-source')?.value.trim();
     const keywords = document.getElementById('upload-keywords')?.value.trim();
     const desc = document.getElementById('upload-desc')?.value.trim();
-    const studentName = document.getElementById('upload-student-name')?.value.trim();
-    const studentEmail = document.getElementById('upload-student-email')?.value.trim();
 
     if (!title || !materiaSelect?.value || !author || !source || !desc) {
       window.showToast?.('Por favor completa todos los campos obligatorios (*)', 'warning');
@@ -308,42 +312,38 @@ export class StudentManager {
       subject: subjectName,
       subjectId: subjectId,
       author: author,
+      docType: docType,
+      verificationStatus: status,
       description: desc,
       keywords: keywords,
       source: source,
-      docType: 'PDF Compartido por Estudiante',
-      level: 'Aporte Estudiantil Universitario',
-      verificationStatus: 'Pendiente de revisión', // Inicialmente Pendiente como se requiere
-      isVerified: false,
-      fileSize: this.formatBytes(this.selectedFile.size),
-      fileName: this.selectedFile.name,
-      fileBlobData: this.fileBase64,
-      studentSubmitter: studentName || 'Estudiante Anónimo',
-      studentEmail: studentEmail || ''
+      level: 'Oficial / Académico',
+      fileName: this.selectedFile.name
     };
 
+    const submitBtn = document.getElementById('upload-btn-submit');
+
     try {
-      const submitBtn = document.getElementById('upload-btn-submit');
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '⏳ Guardando aporte...';
+        submitBtn.innerHTML = '<span>⏳ Subiendo PDF a Supabase...</span>';
       }
 
-      await db.addDocument(newDoc);
+      const savedDoc = await db.addDocument(newDoc, this.selectedFile);
 
       this.close();
-      window.showToast?.('¡Documento enviado con éxito! Quedó registrado como "Pendiente de revisión".', 'success');
+      window.showToast?.('🎉 ¡Documento subido y registrado exitosamente en Supabase!', 'success');
 
-      // Notificar a la app para refrescar vistas
-      window.dispatchEvent(new CustomEvent('documentAdded', { detail: newDoc }));
+      // Notificar a la app para refrescar vistas en vivo
+      window.dispatchEvent(new CustomEvent('documentAdded', { detail: savedDoc }));
+      window.dispatchEvent(new CustomEvent('databaseChanged'));
     } catch (e) {
-      console.error('Error al guardar documento:', e);
-      window.showToast?.('Ocurrió un error al guardar el documento. Intenta nuevamente.', 'error');
+      console.error('Error al guardar documento en Supabase:', e);
+      window.showToast?.(`Error: ${e.message || 'No se pudo subir a Supabase. Verifica el bucket documentos-pdf.'}`, 'error');
     } finally {
-      const submitBtn = document.getElementById('upload-btn-submit');
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>🚀 Enviar a Revisión</span>';
+        submitBtn.innerHTML = '<span>🚀 Subir a Supabase</span>';
       }
     }
   }

@@ -1,36 +1,65 @@
 /**
- * auth.js - Sistema de Gestión de Usuarios y Roles (Estudiante / Administrador)
+ * auth.js - Sistema de Autenticación y Control de Roles con Supabase Auth
+ * Proporciona inicio de sesión seguro para Administradores y acceso libre a Estudiantes.
  */
+
+import { getSupabase } from './supabase-config.js';
 
 class AuthManager {
   constructor() {
-    this.STORAGE_KEY = 'bju_current_user';
     this.listeners = [];
-    this.currentUser = this.loadUser();
+    this.currentUser = this.getDefaultGuestUser();
+    this.initAuth();
   }
 
-  loadUser() {
-    const saved = localStorage.getItem(this.STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error parseando usuario:', e);
-      }
-    }
-    // Usuario por defecto: Estudiante
+  getDefaultGuestUser() {
     return {
-      role: 'student', // 'student' | 'admin'
-      name: 'Estudiante Universitario',
-      email: 'estudiante.derecho@universidad.edu.mx',
-      avatar: '🎓',
-      matricula: 'DER-2024-889'
+      role: 'student',
+      name: 'Estudiante / Visitante',
+      email: null,
+      isAdmin: false,
+      avatar: '🎓'
     };
   }
 
-  saveUser() {
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.currentUser));
-    this.notifyListeners();
+  async initAuth() {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    try {
+      // 1. Verificar sesión existente en Supabase Auth
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (session && session.user) {
+        this.setUserFromSession(session.user);
+      } else {
+        this.currentUser = this.getDefaultGuestUser();
+      }
+      this.notifyListeners();
+
+      // 2. Escuchar cambios de estado en tiempo real (Login, Logout, Token Refresh)
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (session && session.user) {
+          this.setUserFromSession(session.user);
+        } else {
+          this.currentUser = this.getDefaultGuestUser();
+        }
+        this.notifyListeners();
+      });
+    } catch (err) {
+      console.warn('Error inicializando Supabase Auth:', err);
+    }
+  }
+
+  setUserFromSession(user) {
+    this.currentUser = {
+      role: 'admin',
+      name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Administrador',
+      email: user.email,
+      id: user.id,
+      isAdmin: true,
+      avatar: '⚖️',
+      cargo: 'Administrador de la Biblioteca'
+    };
   }
 
   getCurrentUser() {
@@ -38,38 +67,67 @@ class AuthManager {
   }
 
   isAdmin() {
-    return this.currentUser.role === 'admin';
+    return Boolean(this.currentUser && this.currentUser.role === 'admin' && this.currentUser.email);
   }
 
   isStudent() {
-    return this.currentUser.role === 'student';
+    return !this.isAdmin();
   }
 
-  setRole(role) {
-    if (role === 'admin') {
-      this.currentUser = {
-        role: 'admin',
-        name: 'Lic. Administrador de la Biblioteca',
-        email: 'admin.biblioteca@derecho.edu.mx',
-        avatar: '⚖️',
-        cargo: 'Comité Editorial y Moderación Jurídica'
-      };
-    } else {
-      this.currentUser = {
-        role: 'student',
-        name: 'Estudiante de Derecho',
-        email: 'estudiante.derecho@universidad.edu.mx',
-        avatar: '🎓',
-        matricula: 'DER-2024-889'
-      };
+  /**
+   * Iniciar sesión de administrador mediante Supabase Auth
+   */
+  async login(email, password) {
+    const supabase = getSupabase();
+    if (!supabase) {
+      throw new Error('El cliente de Supabase no está disponible.');
     }
-    this.saveUser();
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password
+    });
+
+    if (error) {
+      console.error('Error en Supabase login:', error);
+      throw error;
+    }
+
+    if (data.session && data.user) {
+      this.setUserFromSession(data.user);
+      this.notifyListeners();
+      return { success: true, user: this.currentUser };
+    }
+
+    throw new Error('No se pudo establecer la sesión de administrador.');
+  }
+
+  /**
+   * Cerrar sesión de administrador
+   */
+  async logout() {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('Error cerrando sesión en Supabase:', err);
+      }
+    }
+
+    this.currentUser = this.getDefaultGuestUser();
+    this.notifyListeners();
+    return { success: true };
   }
 
   onAuthStateChanged(callback) {
     this.listeners.push(callback);
-    // Ejecutar inmediatamente
-    callback(this.currentUser);
+    // Ejecutar callback inmediatamente con el estado actual
+    try {
+      callback(this.currentUser);
+    } catch (e) {
+      console.error('Error en callback de auth:', e);
+    }
   }
 
   notifyListeners() {

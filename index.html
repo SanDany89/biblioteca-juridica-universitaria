@@ -16,6 +16,9 @@
   <meta property="og:description" content="Repositorio jurídico moderno para estudiantes de Derecho. Normatividad federal, estatal de Durango y materiales de estudio.">
   <meta property="og:type" content="website">
 
+  <!-- CDN Oficial de Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,10 +38,16 @@
         <span class="topbar-item">🏛️ <strong>Facultad de Derecho</strong> • Repositorio Académico</span>
         <span class="topbar-item">📍 Victoria de Durango, Dgo. | México</span>
       </div>
-      <div class="topbar-user">
-        <div class="role-pill" id="role-switcher-btn" title="Haz clic para alternar entre modo Estudiante y Administrador">
-          <span id="current-role-label">🎓 Estudiante</span>
-          <span class="role-badge" style="font-size: 0.75rem;">(Cambiar Rol)</span>
+      <div class="topbar-user" id="topbar-auth-container">
+        <!-- Contenido dinámico de sesión administrado por auth.js y app.js -->
+        <button class="btn-topbar-login" id="btn-admin-login-trigger" title="Acceso exclusivo para administradores y docentes">
+          <span>🔐 Iniciar Sesión (Admin)</span>
+        </button>
+        <div class="admin-session-pill hidden" id="admin-session-pill">
+          <span class="admin-user-tag" id="admin-user-email">⚖️ Admin</span>
+          <button class="btn-topbar-logout" id="btn-admin-logout" title="Cerrar sesión de administrador">
+            <span>🚪 Salir</span>
+          </button>
         </div>
       </div>
     </div>
@@ -61,7 +70,7 @@
         ☰
       </button>
 
-      <!-- Menú de 10 Secciones Principales -->
+      <!-- Menú de Secciones Principales -->
       <nav>
         <ul class="nav-menu" id="main-nav-menu">
           <li class="nav-item"><a href="#inicio" class="nav-link active" data-view="inicio">Inicio</a></li>
@@ -75,15 +84,15 @@
           <li class="nav-item"><a href="#fuentes" class="nav-link" data-view="fuentes">Fuentes Oficiales</a></li>
           <li class="nav-item"><a href="#acerca" class="nav-link" data-view="acerca">Acerca de</a></li>
           
-          <!-- Pestaña especial Administrador (se activa en modo admin) -->
+          <!-- Pestaña especial Administrador (solo visible cuando hay sesión activa) -->
           <li class="nav-item" id="nav-item-admin" style="display: none;">
             <a href="#admin" class="nav-link active-admin" data-view="admin">⚖️ Panel Admin</a>
           </li>
 
-          <!-- Botón de Acción Directa -->
-          <li class="nav-item">
+          <!-- Botón de Subida (solo visible para administradores autenticados) -->
+          <li class="nav-item" id="nav-item-upload" style="display: none;">
             <button class="btn btn-upload-nav btn-sm" id="btn-header-upload">
-              <span>📤 Compartir PDF</span>
+              <span>📤 Subir PDF</span>
             </button>
           </li>
         </ul>
