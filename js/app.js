@@ -1008,8 +1008,8 @@ class LegalLibraryApp {
       <div class="container" style="padding-top: 2rem; max-width: 950px;">
         <div class="section-header">
           <div class="section-title-wrap">
-            <h2 class="section-title">📖 Acerca de la Biblioteca Jurídica Universitaria</h2>
-            <p class="section-subtitle">Objetivo académico, filosofía del proyecto y guía paso a paso para administrar la plataforma.</p>
+            <h2 class="section-title">📖 Acerca de la Biblioteca Jurídica Universitaria ICEP</h2>
+            <p class="section-subtitle">Misión institucional, guía de uso y políticas de la plataforma.</p>
           </div>
         </div>
 
@@ -1017,47 +1017,108 @@ class LegalLibraryApp {
         <div class="about-card">
           <h3>🏛️ Misión del Proyecto</h3>
           <p>
-            La <strong>Biblioteca Jurídica Universitaria</strong> surge con el propósito de democratizar el acceso al conocimiento jurídico para todos los estudiantes de la carrera de Derecho, facilitando la consulta de la normatividad federal (CPEUM, Códigos Nacionales) y la legislación del <strong>Estado de Durango</strong> y su capital <strong>Victoria de Durango</strong>.
-          </p>
-          <p>
-            Diseñada pensando en la máxima comodidad para usuarios sin conocimientos técnicos, la plataforma combina rigor académico con una experiencia visual moderna, intuitiva y rápida en computadoras, tablets y celulares.
+            La <strong>Biblioteca Jurídica Universitaria ICEP</strong> nace como un espacio digital accesible e intuitivo diseñado para facilitar la consulta, el estudio y la investigación del Derecho. Nuestra misión es centralizar la doctrina, legislación, apuntes y formatos legales esenciales, poniendo al alcance de estudiantes y docentes de la <strong>Universidad ICEP</strong> las herramientas necesarias para fortalecer su formación académica y ejercicio legal.
           </p>
         </div>
 
-        <!-- Guía Paso a Paso para Administrar -->
+        <!-- Guía de Uso: Para Estudiantes -->
         <div class="about-card" style="border-left: 4px solid var(--color-gold);">
-          <h3>📘 Guía Paso a Paso: Cómo Administrar la Biblioteca y Agregar Documentos</h3>
-          <p style="color: var(--color-text-muted);">
-            Esta plataforma está diseñada para que cualquier persona pueda gestionarla sin tocar código de programación. Sigue estos sencillos pasos:
+          <h3>📌 Para Estudiantes</h3>
+          <p style="color: var(--color-text-muted); margin-bottom: 1.25rem;">
+            Accede a todo el material académico de forma libre, sin necesidad de registro ni inicio de sesión.
           </p>
 
-          <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
-            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md);">
-              <h4 style="color: var(--color-primary-dark); margin-bottom: 0.4rem;">1. Cambiar al Modo Administrador</h4>
-              <p style="font-size: 0.9rem; color: var(--color-text-main);">
-                En la barra superior (esquina superior derecha), haz clic en el botón <strong>[🎓 Estudiante]</strong> para cambiarlo a <strong>[⚖️ Administrador]</strong>. Aparecerá inmediatamente la pestaña <strong>"Panel Admin"</strong> en el menú de navegación.
-              </p>
+          <div style="display: flex; flex-direction: column; gap: 1.1rem;">
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="min-width: 2rem; height: 2rem; background: var(--color-gold); color: #0a1128; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">1</div>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Consulta Libre</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Explora el catálogo de leyes, jurisprudencia, formatos y apuntes sin necesidad de registro ni inicio de sesión.</p>
+              </div>
             </div>
 
-            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md);">
-              <h4 style="color: var(--color-primary-dark); margin-bottom: 0.4rem;">2. Revisar y Aprobar PDFs enviados por Estudiantes</h4>
-              <p style="font-size: 0.9rem; color: var(--color-text-main);">
-                Entra a la sección <strong>"Panel Admin"</strong>. En la pestaña <em>"Cola de Revisión"</em> verás los documentos con estado <strong>🟡 Pendiente de revisión</strong>. Puedes hacer clic en <strong>🛡️ Verificar</strong> para otorgarle la certificación de calidad, <strong>🟢 Aprobar</strong> para publicarlo normalmente, <strong>✏️ Editar</strong> para corregir datos o <strong>🗑️ Eliminar</strong> si no cumple con las políticas.
-              </p>
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="min-width: 2rem; height: 2rem; background: var(--color-gold); color: #0a1128; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">2</div>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Búsqueda y Filtros</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Utiliza la barra de búsqueda superior o filtra por materia/categoría para localizar rápidamente el material académico que necesitas.</p>
+              </div>
             </div>
 
-            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md);">
-              <h4 style="color: var(--color-primary-dark); margin-bottom: 0.4rem;">3. Agregar Nuevas Materias o Categorías</h4>
-              <p style="font-size: 0.9rem; color: var(--color-text-main);">
-                En el Panel Admin, ve a la pestaña <em>"Gestión de Materias"</em> o en la sección <em>"Biblioteca por Materias"</em> presiona el botón <strong>"➕ Nueva Materia"</strong>. Escribe el nombre de la materia (ej: <em>Derecho Ambiental</em>, <em>Derecho Agrario</em>) y quedará disponible de inmediato en todos los formularios y filtros.
-              </p>
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="min-width: 2rem; height: 2rem; background: var(--color-gold); color: #0a1128; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">3</div>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Visualización y Descarga</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Haz clic en cualquier documento para abrir el visor en línea o descárgalo directamente a tu dispositivo en formato PDF.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guía de Uso: Para Administradores -->
+        <div class="about-card" style="border-left: 4px solid #6c63ff;">
+          <h3>🔐 Para Administradores</h3>
+          <p style="color: var(--color-text-muted); margin-bottom: 1.25rem;">
+            Gestiona la biblioteca de forma segura y centralizada con acceso restringido por credenciales.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 1.1rem;">
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="min-width: 2rem; height: 2rem; background: #6c63ff; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">1</div>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Acceso Seguro</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Haz clic en el botón <strong>"Iniciar Sesión"</strong> en la barra superior e ingresa con tus credenciales de administrador.</p>
+              </div>
             </div>
 
-            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md);">
-              <h4 style="color: var(--color-primary-dark); margin-bottom: 0.4rem;">4. Guardar Respaldos de la Base de Datos</h4>
-              <p style="font-size: 0.9rem; color: var(--color-text-main);">
-                En la pestaña <em>"Respaldo y Base de Datos"</em> del Panel Admin, puedes hacer clic en <strong>"⬇️ Exportar Respaldo JSON"</strong> para descargar un archivo con todos los documentos y materias. Si cambias de computadora o deseas restaurar tu información, simplemente selecciona el archivo con el botón de importar.
-              </p>
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="min-width: 2rem; height: 2rem; background: #6c63ff; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">2</div>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Subida de Documentos</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Abre el formulario de subida, asigna el título, autor, materia y categoría, y adjunta el archivo PDF. El archivo se guardará automáticamente en la nube.</p>
+              </div>
+            </div>
+
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <div style="min-width: 2rem; height: 2rem; background: #6c63ff; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">3</div>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Control y Mantenimiento</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Gestiona y mantén actualizada la biblioteca con un solo clic.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reglas y Políticas de la Plataforma -->
+        <div class="about-card" style="border-left: 4px solid #2ecc71;">
+          <h3>📋 Reglas y Políticas de la Plataforma</h3>
+          <p style="color: var(--color-text-muted); margin-bottom: 1.25rem;">
+            Para garantizar la calidad, integridad y propósito académico de la biblioteca, toda interacción con la plataforma se rige por las siguientes políticas:
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <span style="font-size: 1.5rem;">📚</span>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Uso Exclusivo Académico</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Todo el material alojado tiene como único fin la consulta académica y el desarrollo estudiantil.</p>
+              </div>
+            </div>
+
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <span style="font-size: 1.5rem;">📄</span>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Calidad de Archivos</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Todos los documentos subidos por la administración deben estar en formato PDF legible y completo.</p>
+              </div>
+            </div>
+
+            <div style="background: var(--color-bg-alt); padding: 1.25rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: flex-start;">
+              <span style="font-size: 1.5rem;">✍️</span>
+              <div>
+                <h4 style="color: var(--color-primary-dark); margin-bottom: 0.3rem;">Propiedad e Identidad</h4>
+                <p style="font-size: 0.9rem; color: var(--color-text-main);">Se respeta el crédito a los autores de las obras, jurisprudencias y materiales doctrinales compartidos.</p>
+              </div>
             </div>
           </div>
         </div>
