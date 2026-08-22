@@ -1,20 +1,34 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+  <meta name="google-site-verification" content="mQCXcvdQexV7mzxHn8sQr11L1qhQPdDz6NrOYVSppG8" />
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Biblioteca Jurídica Universitaria ICEP | Repositorio Oficial y Académico</title>
-  
-  <!-- Metadatos SEO -->
-  <meta name="description" content="Biblioteca Jurídica Universitaria para estudiantes de Derecho. Consulta la Constitución Política de los Estados Unidos Mexicanos (CPEUM), Constitución de Durango, leyes, códigos, jurisprudencia de la SCJN, machotes y PDFs compartidos.">
-  <meta name="keywords" content="Derecho, Biblioteca Jurídica, CPEUM, Constitución Durango, Victoria de Durango, SCJN, Jurisprudencia, Códigos, Leyes, Formatos Jurídicos, Apuntes de Derecho">
-  <meta name="author" content="Facultad de Derecho">
+  <title>Biblioteca Jurídica Universitaria ICEP | Repositorio Digital</title>
+
+  <!-- Metadatos SEO Principales -->
+  <meta name="description"
+    content="Repositorio digital oficial de la Facultad de Derecho ICEP. Consulta y descarga en tiempo real leyes federales (CPEUM), legislación del Estado de Durango, jurisprudencia de la SCJN, formatos jurídicos, machotes procesales y apuntes académicos universitarios.">
+  <meta name="keywords"
+    content="Biblioteca Jurídica Universitaria ICEP, ICEP Derecho, Facultad de Derecho ICEP, CPEUM, Constitución de Durango, Leyes de México, Códigos Durango, Jurisprudencia SCJN, Formatos Jurídicos, Machotes Demandas, Repositorio Jurídico Digital">
+  <meta name="author" content="Biblioteca Jurídica Universitaria ICEP - Facultad de Derecho">
+  <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#0a1128">
 
-  <!-- Open Graph -->
-  <meta property="og:title" content="Biblioteca Jurídica Universitaria ICEP">
-  <meta property="og:description" content="Repositorio jurídico moderno para estudiantes de Derecho. Normatividad federal, estatal de Durango y materiales de estudio.">
+  <!-- Open Graph / Redes Sociales (WhatsApp, Facebook, LinkedIn) -->
+  <meta property="og:site_name" content="Biblioteca Jurídica Universitaria ICEP">
+  <meta property="og:title" content="Biblioteca Jurídica Universitaria ICEP | Repositorio Digital">
+  <meta property="og:description"
+    content="Repositorio digital oficial de la Facultad de Derecho ICEP. Consulta y descarga leyes federales, legislación del Estado de Durango, jurisprudencia SCJN, machotes de demandas y formatos jurídicos.">
   <meta property="og:type" content="website">
+  <meta property="og:locale" content="es_MX">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Biblioteca Jurídica Universitaria ICEP | Repositorio Digital">
+  <meta name="twitter:description"
+    content="Repositorio digital oficial de la Facultad de Derecho ICEP. Consulta y descarga leyes federales, legislación del Estado de Durango, jurisprudencia SCJN y formatos jurídicos.">
 
   <!-- CDN Oficial de Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -22,13 +36,16 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Outfit:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
 
   <!-- Hojas de Estilo CSS -->
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/responsive.css">
 </head>
+
 <body>
 
   <!-- 1. TOPBAR INSTITUCIONAL -->
@@ -40,7 +57,8 @@
       </div>
       <div class="topbar-user" id="topbar-auth-container">
         <!-- Contenido dinámico de sesión administrado por auth.js y app.js -->
-        <button class="btn-topbar-login" id="btn-admin-login-trigger" title="Acceso exclusivo para administradores y docentes">
+        <button class="btn-topbar-login" id="btn-admin-login-trigger"
+          title="Acceso exclusivo para administradores y docentes">
           <span>🔐 Iniciar Sesión (Admin)</span>
         </button>
         <div class="admin-session-pill hidden" id="admin-session-pill">
@@ -77,13 +95,14 @@
           <li class="nav-item"><a href="#materias" class="nav-link" data-view="materias">Materias</a></li>
           <li class="nav-item"><a href="#buscador" class="nav-link" data-view="buscador">Buscador</a></li>
           <li class="nav-item"><a href="#leyes" class="nav-link" data-view="leyes">Leyes y Códigos</a></li>
-          <li class="nav-item"><a href="#jurisprudencia" class="nav-link" data-view="jurisprudencia">Jurisprudencia</a></li>
+          <li class="nav-item"><a href="#jurisprudencia" class="nav-link" data-view="jurisprudencia">Jurisprudencia</a>
+          </li>
           <li class="nav-item"><a href="#apuntes" class="nav-link" data-view="apuntes">Apuntes</a></li>
           <li class="nav-item"><a href="#formatos" class="nav-link" data-view="formatos">Formatos</a></li>
           <li class="nav-item"><a href="#estudiantes" class="nav-link" data-view="estudiantes">PDFs Alumnos</a></li>
           <li class="nav-item"><a href="#fuentes" class="nav-link" data-view="fuentes">Fuentes Oficiales</a></li>
           <li class="nav-item"><a href="#acerca" class="nav-link" data-view="acerca">Acerca de</a></li>
-          
+
           <!-- Pestaña especial Administrador (solo visible cuando hay sesión activa) -->
           <li class="nav-item" id="nav-item-admin" style="display: none;">
             <a href="#admin" class="nav-link active-admin" data-view="admin">⚖️ Panel Admin</a>
@@ -113,7 +132,8 @@
         <div class="footer-brand">
           <h3>⚖️ Biblioteca Jurídica Universitaria ICEP</h3>
           <p>
-            Plataforma académica y repositorio digital para estudiantes y docentes de la carrera de Derecho. Facilitamos la consulta de leyes federales de México y la legislación vigente en el Estado Libre y Soberano de Durango.
+            Plataforma académica y repositorio digital para estudiantes y docentes de la carrera de Derecho. Facilitamos
+            la consulta de leyes federales de México y la legislación vigente en el Estado Libre y Soberano de Durango.
           </p>
           <div style="margin-top: 1rem; color: var(--color-gold); font-size: 0.85rem; font-weight: 600;">
             🏛️ <em>Iustitia est constans et perpetua voluntas ius suum cuique tribuendi</em>
@@ -172,4 +192,5 @@
   <!-- Scripts Modulares JS (ES6) -->
   <script type="module" src="js/app.js"></script>
 </body>
+
 </html>
