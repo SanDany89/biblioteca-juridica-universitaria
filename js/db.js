@@ -1,71 +1,24 @@
 /**
  * db.js - Motor de Base de Datos en Nube con Supabase
  * Fuente ÚNICA de verdad: todas las materias y documentos se leen y escriben
- * directamente en las tablas 'materias' y 'documentos' de Supabase.
+ * directamente en las tablas 'materias' y 'documentos' de Supabase en tiempo real.
  * No se usan arrays estáticos, localStorage ni IndexedDB como fuentes de datos.
  */
 
 import { getSupabase, STORAGE_BUCKET, TABLE_DOCUMENTS, TABLE_SUBJECTS } from './supabase-config.js';
 
-const DB_NAME = 'BibliotecaJuridicaUniversitariaDB';
-const DB_VERSION = 1;
-
 class LegalDatabase {
   constructor() {
-    this.db = null;
     this.isReady = false;
-    this.useLocalStorage = false;
+    this.realtimeChannel = null;
     this.initPromise = this.init();
   }
 
   async init() {
-    return new Promise((resolve) => {
-      if (!window.indexedDB) {
-        console.warn('IndexedDB no soportado, usando almacenamiento local');
-        this.useLocalStorage = true;
-        // Limpiar claves estáticas del localStorage sin sembrar nuevas
-        const staleKeys = ['bju_documents', 'bju_subjects', 'bju_db_seeded'];
-        staleKeys.forEach(key => localStorage.removeItem(key));
-        this.isReady = true;
-        resolve(this);
-        return;
-      }
-
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-
-        if (!db.objectStoreNames.contains('documents')) {
-          const docStore = db.createObjectStore('documents', { keyPath: 'id' });
-          docStore.createIndex('subjectId', 'subjectId', { unique: false });
-          docStore.createIndex('verificationStatus', 'verificationStatus', { unique: false });
-          docStore.createIndex('docType', 'docType', { unique: false });
-        }
-
-        if (!db.objectStoreNames.contains('subjects')) {
-          db.createObjectStore('subjects', { keyPath: 'id' });
-        }
-      };
-
-      request.onsuccess = async (event) => {
-        this.db = event.target.result;
-        this.isReady = true;
-        // Limpiar datos estáticos locales para evitar inconsistencias entre usuarios
-        this.clearStaleLocalData();
-        resolve(this);
-      };
-
-      request.onerror = (event) => {
-        console.error('Error al abrir IndexedDB:', event.target.error);
-        this.useLocalStorage = true;
-        // En caso de error tampoco sembrar datos estáticos
-        const staleKeys = ['bju_documents', 'bju_subjects', 'bju_db_seeded'];
-        staleKeys.forEach(key => localStorage.removeItem(key));
-        this.isReady = true;
-        resolve(this);
-      };
-    });
+    // Limpiar cualquier residuo estático obsoleto del localStorage e IndexedDB
+    this.clearStaleLocalData();
+    this.isReady = true;
+    return this;
   }
 
   /**
@@ -73,43 +26,30 @@ class LegalDatabase {
    * y documentos sembrados en versiones anteriores, para forzar la lectura desde Supabase.
    */
   clearStaleLocalData() {
-    // Borrar claves de localStorage usadas por versiones anteriores
     const staleKeys = [
       'bju_documents',
       'bju_subjects',
       'bju_db_seeded'
     ];
-    staleKeys.forEach(key => localStorage.removeItem(key));
-
-    // Borrar stores de IndexedDB si están disponibles
-    if (this.db) {
+    staleKeys.forEach(key => {
       try {
-        const tx = this.db.transaction(['documents', 'subjects'], 'readwrite');
-        tx.objectStore('documents').clear();
-        tx.objectStore('subjects').clear();
+        if (localStorage.getItem(key) !== null) {
+          localStorage.removeItem(key);
+        }
       } catch (e) {
-        // Si falla no es crítico — Supabase es la fuente de verdad
-        console.warn('No se pudo limpiar IndexedDB:', e);
-      }
-    }
-  }
-
-  async countLocal(storeName) {
-    if (this.useLocalStorage) {
-      const items = JSON.parse(localStorage.getItem(`bju_${storeName}`) || '[]');
-      return items.length;
-    }
-    return new Promise((resolve) => {
-      try {
-        const tx = this.db.transaction(storeName, 'readonly');
-        const store = tx.objectStore(storeName);
-        const req = store.count();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => resolve(0);
-      } catch (e) {
-        resolve(0);
+        // Ignorar en entornos restrictivos
       }
     });
+
+    if (typeof window !== 'undefined' && window.indexedDB) {
+      try {
+        const req = indexedDB.deleteDatabase('BibliotecaJuridicaUniversitariaDB');
+        req.onerror = () => {};
+        req.onsuccess = () => {};
+      } catch (e) {
+        // Ignorar
+      }
+    }
   }
 
   /* ==========================================================================
@@ -135,7 +75,7 @@ class LegalDatabase {
     const timestamp = Date.now();
     const filePath = `${timestamp}_${cleanName}`;
 
-    console.log(`Subiendo PDF a bucket '${STORAGE_BUCKET}': ${filePath}`);
+    console.log(`[Supabase Storage] Subiendo PDF a bucket '${STORAGE_BUCKET}': ${filePath}`);
 
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -146,7 +86,7 @@ class LegalDatabase {
       });
 
     if (error) {
-      console.error('Error al subir archivo a Supabase Storage:', error);
+      console.error('[Supabase Storage] Error al subir archivo:', error);
       throw error;
     }
 
@@ -155,7 +95,7 @@ class LegalDatabase {
       .getPublicUrl(filePath);
 
     const publicUrl = publicUrlData?.publicUrl || '';
-    console.log('PDF subido con éxito a Supabase. URL Pública:', publicUrl);
+    console.log('[Supabase Storage] PDF subido con éxito. URL Pública:', publicUrl);
 
     return {
       filePath,
@@ -216,19 +156,19 @@ class LegalDatabase {
   }
 
   /* ==========================================================================
-     CONSULTA DE DOCUMENTOS (SOLO SUPABASE)
+     CONSULTA DE DOCUMENTOS (EXCLUSIVAMENTE SUPABASE)
      ========================================================================== */
 
   /**
    * Obtiene la lista completa de documentos EXCLUSIVAMENTE desde la tabla
-   * 'documentos' de Supabase. No mezcla datos locales ni estáticos.
+   * 'documentos' de Supabase.
    */
   async getAllDocuments() {
     await this.initPromise;
     const supabase = getSupabase();
 
     if (!supabase) {
-      console.warn('Supabase no disponible. No se pueden cargar documentos.');
+      console.warn('[Supabase DB] Supabase no disponible. No se pueden cargar documentos.');
       return [];
     }
 
@@ -239,23 +179,43 @@ class LegalDatabase {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('Error consultando tabla documentos en Supabase:', error.message);
+        console.warn('[Supabase DB] Error consultando tabla documentos:', error.message);
         return [];
       }
 
       return Array.isArray(data) ? data.map(row => this.mapSupabaseDoc(row)) : [];
     } catch (err) {
-      console.warn('Fallo al conectar con Supabase para listar documentos:', err);
+      console.warn('[Supabase DB] Fallo al conectar con Supabase para listar documentos:', err);
       return [];
     }
   }
 
   /**
-   * Obtener documento por ID (Supabase)
+   * Obtener documento por ID EXCLUSIVAMENTE desde Supabase
    */
   async getDocumentById(id) {
-    const all = await this.getAllDocuments();
-    return all.find(d => String(d.id) === String(id)) || null;
+    await this.initPromise;
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from(TABLE_DOCUMENTS)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        // Si no se encuentra por select directo, buscar en lista general
+        const all = await this.getAllDocuments();
+        return all.find(d => String(d.id) === String(id)) || null;
+      }
+
+      return data ? this.mapSupabaseDoc(data) : null;
+    } catch (err) {
+      const all = await this.getAllDocuments();
+      return all.find(d => String(d.id) === String(id)) || null;
+    }
   }
 
   /* ==========================================================================
@@ -265,17 +225,21 @@ class LegalDatabase {
     await this.initPromise;
     const supabase = getSupabase();
 
+    if (!supabase) {
+      throw new Error('No hay conexión con Supabase. Verifica tu red.');
+    }
+
     let publicUrl = documentData.downloadUrl || '#';
     let uploadedFileName = file ? file.name : (documentData.fileName || 'documento.pdf');
     let fileSizeStr = file ? this.formatBytes(file.size) : (documentData.fileSize || 'N/A');
 
     // 1. Subida a Supabase Storage
-    if (file && supabase) {
+    if (file) {
       try {
         const uploadResult = await this.uploadPdfToStorage(file);
         publicUrl = uploadResult.publicUrl;
       } catch (uploadErr) {
-        console.error('Error al subir a Supabase Storage:', uploadErr);
+        console.error('[Supabase Storage] Error al subir PDF:', uploadErr);
         throw new Error(`Error en el almacenamiento de Supabase: ${uploadErr.message || 'Verifica que el bucket "documentos-pdf" exista y sea público.'}`);
       }
     }
@@ -284,214 +248,148 @@ class LegalDatabase {
     const status = documentData.verificationStatus || 'Material verificado';
 
     // 2. Inserción en la tabla 'documentos' de Supabase
-    let supabaseRecord = null;
-    if (supabase) {
-      const payload = {
-        titulo: documentData.title,
-        materia: documentData.subject,
-        categoria: docType,
-        url: publicUrl,
-        autor: documentData.author,
-        descripcion: documentData.description || '',
-        fuente: documentData.source || 'Facultad de Derecho',
-        estado: status
-      };
-
-      try {
-        const { data, error } = await supabase
-          .from(TABLE_DOCUMENTS)
-          .insert([payload])
-          .select();
-
-        if (error) {
-          console.warn('Aviso: Inserción en tabla Supabase devolvió error:', error.message);
-        } else if (data && data[0]) {
-          supabaseRecord = data[0];
-          console.log('Registro guardado exitosamente en tabla Supabase documentos:', supabaseRecord);
-        }
-      } catch (dbErr) {
-        console.warn('Error al insertar registro en Supabase:', dbErr);
-      }
-    }
-
-    // 3. Crear documento formateado
-    const newDoc = supabaseRecord ? this.mapSupabaseDoc(supabaseRecord) : {
-      id: documentData.id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      title: documentData.title || 'Documento sin título',
-      subject: documentData.subject || 'Otras materias',
-      subjectId: documentData.subjectId || 'otras',
-      author: documentData.author || 'Anónimo',
-      publishDate: new Date().toISOString().split('T')[0],
-      lastUpdate: new Date().toISOString().split('T')[0],
-      docType: docType,
-      level: documentData.level || 'Estudiantil / Académico',
-      description: documentData.description || '',
-      keywords: Array.isArray(documentData.keywords) 
-        ? documentData.keywords 
-        : (documentData.keywords || '').split(',').map(k => k.trim()).filter(Boolean),
-      source: documentData.source || 'Aporte Universitario',
-      verificationStatus: status,
-      isVerified: status === 'Material verificado',
-      fileSize: fileSizeStr,
-      fileType: 'PDF',
-      downloadUrl: publicUrl,
-      officialUrl: publicUrl,
-      fileBlobData: documentData.fileBlobData || null,
-      fileName: uploadedFileName,
-      studentSubmitter: documentData.studentSubmitter || null,
-      studentEmail: documentData.studentEmail || null,
-      featured: Boolean(documentData.featured)
+    const payload = {
+      titulo: documentData.title,
+      materia: documentData.subject,
+      categoria: docType,
+      url: publicUrl,
+      autor: documentData.author,
+      descripcion: documentData.description || '',
+      fuente: documentData.source || 'Facultad de Derecho',
+      estado: status
     };
 
-    // 4. Respaldar en almacenamiento local
-    await this.saveLocalDoc(newDoc);
+    const { data, error } = await supabase
+      .from(TABLE_DOCUMENTS)
+      .insert([payload])
+      .select();
 
-    return newDoc;
-  }
-
-  async saveLocalDoc(doc) {
-    if (this.useLocalStorage) {
-      const docs = JSON.parse(localStorage.getItem('bju_documents') || '[]');
-      docs.unshift(doc);
-      localStorage.setItem('bju_documents', JSON.stringify(docs));
-      return doc;
+    if (error) {
+      console.error('[Supabase DB] Error al insertar documento en Supabase:', error.message);
+      throw new Error(`Error al registrar documento en Supabase: ${error.message}`);
     }
 
-    return new Promise((resolve) => {
-      try {
-        const tx = this.db.transaction('documents', 'readwrite');
-        const store = tx.objectStore('documents');
-        store.put(doc);
-        tx.oncomplete = () => resolve(doc);
-        tx.onerror = () => resolve(doc);
-      } catch (e) {
-        resolve(doc);
-      }
-    });
+    const savedRecord = data && data[0] ? data[0] : payload;
+    return this.mapSupabaseDoc(savedRecord);
   }
 
   /* ==========================================================================
-     ACTUALIZAR Y ELIMINAR DOCUMENTOS
+     ACTUALIZAR Y ELIMINAR DOCUMENTOS EN SUPABASE
      ========================================================================== */
   async updateDocument(id, updates) {
     await this.initPromise;
     const supabase = getSupabase();
 
-    // Si es un registro de Supabase (numérico o ID UUID/alfanumérico)
-    if (supabase) {
-      try {
-        const payload = {};
-        if (updates.title) payload.titulo = updates.title;
-        if (updates.subject) payload.materia = updates.subject;
-        if (updates.docType) payload.categoria = updates.docType;
-        if (updates.author) payload.autor = updates.author;
-        if (updates.description) payload.descripcion = updates.description;
-        if (updates.source) payload.fuente = updates.source;
-        if (updates.verificationStatus) payload.estado = updates.verificationStatus;
-        if (updates.downloadUrl) payload.url = updates.downloadUrl;
-
-        if (Object.keys(payload).length > 0) {
-          await supabase
-            .from(TABLE_DOCUMENTS)
-            .update(payload)
-            .eq('id', id);
-        }
-      } catch (err) {
-        console.warn('Error actualizando en Supabase:', err);
-      }
+    if (!supabase) {
+      throw new Error('Supabase no disponible para actualizar');
     }
 
-    // Actualizar copia local
-    const currentDoc = await this.getDocumentById(id);
-    if (!currentDoc) return null;
+    const payload = {};
+    if (updates.title !== undefined) payload.titulo = updates.title;
+    if (updates.subject !== undefined) payload.materia = updates.subject;
+    if (updates.docType !== undefined) payload.categoria = updates.docType;
+    if (updates.author !== undefined) payload.autor = updates.author;
+    if (updates.description !== undefined) payload.descripcion = updates.description;
+    if (updates.source !== undefined) payload.fuente = updates.source;
+    if (updates.verificationStatus !== undefined) payload.estado = updates.verificationStatus;
+    if (updates.downloadUrl !== undefined) payload.url = updates.downloadUrl;
 
-    const updatedDoc = {
-      ...currentDoc,
-      ...updates,
-      lastUpdate: new Date().toISOString().split('T')[0],
-      isVerified: (updates.verificationStatus === 'Material verificado' || 
-                   (currentDoc.verificationStatus === 'Material verificado' && updates.verificationStatus === undefined))
-    };
+    if (Object.keys(payload).length > 0) {
+      const { data, error } = await supabase
+        .from(TABLE_DOCUMENTS)
+        .update(payload)
+        .eq('id', id)
+        .select();
 
-    await this.saveLocalDoc(updatedDoc);
-    return updatedDoc;
+      if (error) {
+        console.error('[Supabase DB] Error actualizando documento en Supabase:', error);
+        throw error;
+      }
+
+      return data && data[0] ? this.mapSupabaseDoc(data[0]) : null;
+    }
+
+    return await this.getDocumentById(id);
   }
 
   async deleteDocument(id) {
     await this.initPromise;
     const supabase = getSupabase();
 
-    if (supabase) {
-      try {
-        await supabase
-          .from(TABLE_DOCUMENTS)
-          .delete()
-          .eq('id', id);
-      } catch (err) {
-        console.warn('Error eliminando en Supabase:', err);
-      }
+    if (!supabase) {
+      throw new Error('Supabase no disponible para eliminar');
     }
 
-    // Eliminar de copia local
-    if (this.useLocalStorage) {
-      let docs = JSON.parse(localStorage.getItem('bju_documents') || '[]');
-      docs = docs.filter(d => String(d.id) !== String(id));
-      localStorage.setItem('bju_documents', JSON.stringify(docs));
-      return true;
+    const { error } = await supabase
+      .from(TABLE_DOCUMENTS)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('[Supabase DB] Error eliminando documento en Supabase:', error);
+      throw error;
     }
 
-    return new Promise((resolve) => {
-      try {
-        const tx = this.db.transaction('documents', 'readwrite');
-        const store = tx.objectStore('documents');
-        store.delete(id);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => resolve(true);
-      } catch (e) {
-        resolve(true);
-      }
-    });
+    return true;
   }
 
   /* ==========================================================================
-     MATERIAS / CATEGORÍAS JURÍDICAS (SOLO SUPABASE)
+     MATERIAS / CATEGORÍAS JURÍDICAS (EXCLUSIVAMENTE SUPABASE)
      ========================================================================== */
 
   /**
-   * Obtiene la lista de materias EXCLUSIVAMENTE desde la tabla 'materias' de Supabase.
-   * Los conteos de documentos se calculan dinámicamente.
-   * Si la tabla no existe en Supabase, devuelve array vacío.
+   * Obtiene la lista de materias EXCLUSIVAMENTE desde la tabla 'materias' de Supabase
+   * ordenada por 'nombre' ascendentemente.
+   * Los conteos de documentos asociados se calculan dinámicamente.
    */
   async getAllSubjects() {
     await this.initPromise;
     const supabase = getSupabase();
 
     if (!supabase) {
-      console.warn('Supabase no disponible. No se pueden cargar materias.');
+      console.warn('[Supabase DB] Supabase no disponible. No se pueden cargar materias.');
       return [];
     }
 
     let subjects = [];
     try {
-      const { data, error } = await supabase
+      // 1. Consultar directamente la tabla 'materias' ordenada por 'nombre'
+      let { data, error } = await supabase
         .from(TABLE_SUBJECTS)
         .select('*')
-        .order('name', { ascending: true });
+        .order('nombre', { ascending: true });
+
+      // Compatibilidad si la tabla usa la columna 'name'
+      if (error && error.message && (error.message.includes('nombre') || error.message.includes('column'))) {
+        const retry = await supabase
+          .from(TABLE_SUBJECTS)
+          .select('*')
+          .order('name', { ascending: true });
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
-        console.warn('Error consultando tabla materias en Supabase:', error.message);
+        console.warn('[Supabase DB] Error consultando tabla materias en Supabase:', error.message);
         return [];
       }
 
-      subjects = Array.isArray(data) ? data.map(row => ({
-        id:   row.id   || row.slug || String(row.id),
-        name: row.name || row.nombre || 'Sin nombre',
-        icon: row.icon || row.icono || 'book-open',
-        desc: row.desc || row.descripcion || '',
-        count: 0
-      })) : [];
+      subjects = Array.isArray(data) ? data.map(row => {
+        const nom = row.nombre || row.name || 'Sin nombre';
+        const id = row.id !== undefined && row.id !== null 
+          ? String(row.id) 
+          : (row.slug || nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_'));
+        return {
+          id: id,
+          name: nom,
+          nombre: nom,
+          icon: row.icono || row.icon || 'book-open',
+          desc: row.descripcion || row.desc || '',
+          count: 0
+        };
+      }) : [];
     } catch (err) {
-      console.warn('Fallo al conectar con Supabase para listar materias:', err);
+      console.warn('[Supabase DB] Fallo al conectar con Supabase para listar materias:', err);
       return [];
     }
 
@@ -500,65 +398,187 @@ class LegalDatabase {
     return subjects.map(sub => {
       const count = allDocs.filter(d =>
         (d.subjectId === sub.id ||
-         (d.subject && d.subject.toLowerCase() === sub.name.toLowerCase())) &&
+         (d.subject && d.subject.toLowerCase() === sub.name.toLowerCase()) ||
+         (d.subject && d.subject.toLowerCase() === (sub.nombre || '').toLowerCase())) &&
         d.verificationStatus !== 'Rechazado'
       ).length;
       return { ...sub, count };
     });
   }
 
+  /**
+   * Inserta una nueva materia en Supabase en la tabla 'materias'.
+   * Lanza un error explícito si la operación falla en Supabase.
+   */
   async addSubject(subjectData) {
     await this.initPromise;
     const supabase = getSupabase();
 
-    const sub = {
-      id:   subjectData.id   || subjectData.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_'),
-      name: subjectData.name,
-      icon: subjectData.icon || 'book-open',
-      desc: subjectData.desc || 'Documentos y doctrina de la materia.',
-      count: 0
-    };
+    if (!supabase) {
+      throw new Error('No hay conexión con Supabase. Verifica tu conexión a internet.');
+    }
 
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
+    const rawName = typeof subjectData === 'string' ? subjectData : (subjectData.nombre || subjectData.name || '');
+    const nombreMateria = rawName.trim();
+
+    if (!nombreMateria) {
+      throw new Error('El nombre de la materia es obligatorio.');
+    }
+
+    const desc = typeof subjectData === 'object' ? (subjectData.descripcion || subjectData.desc || '').trim() : '';
+    const icon = typeof subjectData === 'object' ? (subjectData.icono || subjectData.icon || 'book-open') : 'book-open';
+    const slugId = typeof subjectData === 'object' && subjectData.id 
+      ? subjectData.id 
+      : nombreMateria.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_');
+
+    // Intentar inserción con objeto estándar (nombre, descripcion, icono, id)
+    let { data, error } = await supabase
+      .from(TABLE_SUBJECTS)
+      .insert([{
+        id: slugId,
+        nombre: nombreMateria,
+        name: nombreMateria,
+        descripcion: desc,
+        desc: desc,
+        icon: icon
+      }])
+      .select();
+
+    // Si falla por columnas adicionales no existentes, intentar inserción básica: [{ nombre: nombreMateria }]
+    if (error) {
+      const retryNombre = await supabase
+        .from(TABLE_SUBJECTS)
+        .insert([{ nombre: nombreMateria }])
+        .select();
+
+      if (!retryNombre.error) {
+        data = retryNombre.data;
+        error = null;
+      } else {
+        // Intentar con { name: nombreMateria }
+        const retryName = await supabase
           .from(TABLE_SUBJECTS)
-          .insert([{ id: sub.id, name: sub.name, icon: sub.icon, desc: sub.desc }])
+          .insert([{ name: nombreMateria }])
           .select();
 
-        if (error) {
-          console.warn('Error al insertar materia en Supabase:', error.message);
-        } else if (data && data[0]) {
-          return { ...sub, ...data[0] };
+        if (!retryName.error) {
+          data = retryName.data;
+          error = null;
+        } else {
+          // Mantener el error más descriptivo
+          error = retryNombre.error || error;
         }
-      } catch (err) {
-        console.warn('Error al guardar materia en Supabase:', err);
       }
     }
 
-    return sub;
+    if (error) {
+      console.error('[Supabase DB] Error al insertar materia en Supabase:', error);
+      throw new Error(error.message || error.details || error.hint || 'No se pudo insertar la materia en Supabase.');
+    }
+
+    return data && data[0] ? data[0] : { id: slugId, nombre: nombreMateria, name: nombreMateria };
   }
 
+  /**
+   * Elimina una materia de la tabla 'materias' en Supabase por su ID.
+   */
   async deleteSubject(id) {
     await this.initPromise;
     const supabase = getSupabase();
 
-    if (supabase) {
-      try {
-        const { error } = await supabase
-          .from(TABLE_SUBJECTS)
-          .delete()
-          .eq('id', id);
+    if (!supabase) {
+      throw new Error('No hay conexión con Supabase. Verifica tu conexión a internet.');
+    }
 
-        if (error) {
-          console.warn('Error al eliminar materia en Supabase:', error.message);
-        }
-      } catch (err) {
-        console.warn('Error al eliminar materia en Supabase:', err);
-      }
+    const { error } = await supabase
+      .from(TABLE_SUBJECTS)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('[Supabase DB] Error al eliminar materia en Supabase:', error);
+      throw new Error(error.message || error.details || 'No se pudo eliminar la materia de Supabase.');
     }
 
     return true;
+  }
+
+  /* ==========================================================================
+     SUPABASE REALTIME: ESCUCHA DE CAMBIOS EN VIVO ('schema-db-changes')
+     ========================================================================== */
+
+  /**
+   * Activa Supabase Realtime usando supabase.channel('schema-db-changes')
+   * para escuchar los eventos 'INSERT', 'UPDATE' y 'DELETE' en las tablas
+   * 'documentos' y 'materias'.
+   * @param {Function} onRealtimeChange Callback que se ejecuta ante cualquier cambio
+   * @returns {RealtimeChannel|null}
+   */
+  subscribeToRealtime(onRealtimeChange) {
+    const supabase = getSupabase();
+    if (!supabase) {
+      console.warn('[Realtime] Supabase no disponible para canal Realtime.');
+      return null;
+    }
+
+    // Si ya existe un canal previo, limpiarlo para evitar oyentes duplicados
+    if (this.realtimeChannel) {
+      try {
+        supabase.removeChannel(this.realtimeChannel);
+      } catch (e) {
+        console.warn('[Realtime] Error al remover canal previo:', e);
+      }
+    }
+
+    const channel = supabase.channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Escucha INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: TABLE_DOCUMENTS // 'documentos'
+        },
+        (payload) => {
+          console.log(`📡 [Realtime] Cambio detectado en tabla '${TABLE_DOCUMENTS}': ${payload.eventType}`, payload);
+          if (typeof onRealtimeChange === 'function') {
+            onRealtimeChange({ table: TABLE_DOCUMENTS, eventType: payload.eventType, payload });
+          }
+          window.dispatchEvent(new CustomEvent('databaseChanged', {
+            detail: { table: TABLE_DOCUMENTS, eventType: payload.eventType, payload }
+          }));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Escucha INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: TABLE_SUBJECTS // 'materias'
+        },
+        (payload) => {
+          console.log(`📡 [Realtime] Cambio detectado en tabla '${TABLE_SUBJECTS}': ${payload.eventType}`, payload);
+          if (typeof onRealtimeChange === 'function') {
+            onRealtimeChange({ table: TABLE_SUBJECTS, eventType: payload.eventType, payload });
+          }
+          window.dispatchEvent(new CustomEvent('databaseChanged', {
+            detail: { table: TABLE_SUBJECTS, eventType: payload.eventType, payload }
+          }));
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('🟢 [Supabase Realtime] Canal "schema-db-changes" conectado y activo. Sincronización en vivo habilitada para "documentos" y "materias".');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.warn('⚠️ [Supabase Realtime] Error en canal "schema-db-changes":', err);
+        } else if (status === 'TIMED_OUT') {
+          console.warn('⏱️ [Supabase Realtime] Tiempo de espera agotado al conectar canal.');
+        } else if (status === 'CLOSED') {
+          console.log('⚪ [Supabase Realtime] Canal cerrado.');
+        }
+      });
+
+    this.realtimeChannel = channel;
+    return channel;
   }
 
   /* ==========================================================================
@@ -578,6 +598,35 @@ class LegalDatabase {
     };
   }
 
+  async exportDatabaseJSON() {
+    const docs = await this.getAllDocuments();
+    const subjects = await this.getAllSubjects();
+    return JSON.stringify({
+      exportDate: new Date().toISOString(),
+      version: '2.0-supabase',
+      subjects,
+      documents: docs
+    }, null, 2);
+  }
+
+  async importDatabaseJSON(jsonString) {
+    const data = JSON.parse(jsonString);
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase no disponible');
+
+    if (Array.isArray(data.subjects)) {
+      for (const sub of data.subjects) {
+        await this.addSubject(sub);
+      }
+    }
+    if (Array.isArray(data.documents)) {
+      for (const doc of data.documents) {
+        await this.addDocument(doc);
+      }
+    }
+    return true;
+  }
+
   formatBytes(bytes) {
     if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -588,3 +637,4 @@ class LegalDatabase {
 }
 
 export const db = new LegalDatabase();
+

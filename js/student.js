@@ -245,26 +245,38 @@ export class StudentManager {
     const modal = document.getElementById('student-upload-modal');
     if (!modal) return;
 
-    // Cargar materias en el select
+    // Cargar materias en el select directamente desde Supabase
+    await this.refreshSubjects(preselectedSubject);
+
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  /**
+   * Recarga las opciones del selector de materias consultando Supabase en tiempo real.
+   */
+  static async refreshSubjects(preselectedSubject = null) {
     const materiaSelect = document.getElementById('upload-materia');
-    if (materiaSelect) {
+    if (!materiaSelect) return;
+
+    const currentSelected = preselectedSubject || materiaSelect.value;
+    try {
       const subjects = await db.getAllSubjects();
       materiaSelect.innerHTML = '<option value="">Selecciona una materia...</option>';
       subjects.forEach(sub => {
         const opt = document.createElement('option');
         opt.value = sub.id;
-        opt.textContent = sub.name;
-        opt.dataset.name = sub.name;
-        if (preselectedSubject && (sub.id === preselectedSubject || sub.name.toLowerCase() === preselectedSubject.toLowerCase())) {
+        opt.textContent = sub.name || sub.nombre;
+        opt.dataset.name = sub.name || sub.nombre;
+        if (currentSelected && (sub.id === currentSelected || (sub.name || '').toLowerCase() === currentSelected.toLowerCase())) {
           opt.selected = true;
         }
         materiaSelect.appendChild(opt);
       });
+    } catch (e) {
+      console.warn('[StudentManager] Error al refrescar selector de materias:', e);
     }
-
-    modal.classList.add('active');
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
   }
 
   static close() {

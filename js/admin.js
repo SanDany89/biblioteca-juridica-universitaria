@@ -209,11 +209,31 @@ export class AdminManager {
   }
 
   // AGREGAR NUEVA MATERIA
-  static async createSubject(name, desc, icon = 'book-open') {
-    if (!name.trim()) return;
-    await db.addSubject({ name: name.trim(), desc: desc.trim(), icon });
-    window.showToast?.(`Materia "${name}" agregada exitosamente`, 'success');
-    window.dispatchEvent(new CustomEvent('databaseChanged'));
+  static async createSubject(name, desc = '', icon = 'book-open') {
+    if (!name || !name.trim()) {
+      window.showToast?.('Por favor ingresa un nombre para la materia.', 'warning');
+      return false;
+    }
+
+    try {
+      await db.addSubject({
+        nombre: name.trim(),
+        name: name.trim(),
+        descripcion: desc ? desc.trim() : '',
+        desc: desc ? desc.trim() : '',
+        icono: icon,
+        icon: icon
+      });
+      window.showToast?.(`Materia "${name.trim()}" agregada exitosamente a Supabase ✅`, 'success');
+      window.dispatchEvent(new CustomEvent('databaseChanged'));
+      return true;
+    } catch (err) {
+      console.error('[AdminManager] Error al registrar materia en Supabase:', err);
+      const exactError = err?.message || err?.details || String(err);
+      window.showToast?.(`❌ Error al guardar en Supabase: ${exactError}`, 'error');
+      alert(`⚠️ Error al agregar la materia en Supabase:\n\n${exactError}`);
+      return false;
+    }
   }
 
   // EXPORTAR RESPALDO JSON

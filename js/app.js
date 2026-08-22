@@ -310,13 +310,86 @@ class LegalLibraryApp {
   }
 
   bindGlobalEvents() {
-    window.addEventListener('databaseChanged', () => {
-      this.renderCurrentView();
+    // 1. Activar sincronización en tiempo real con Supabase Realtime
+    this.setupRealtimeSync();
+
+    // 2. Escuchar eventos globales de cambios
+    window.addEventListener('databaseChanged', (e) => {
+      this.handleDatabaseChanged(e?.detail);
     });
 
     window.addEventListener('documentAdded', () => {
       this.renderCurrentView();
     });
+  }
+
+  /**
+   * Conecta con Supabase Realtime en el canal 'schema-db-changes'.
+   * Cada vez que se detecte un cambio en 'documentos' o 'materias',
+   * la vista activa se vuelve a dibujar en pantalla en vivo.
+   */
+  setupRealtimeSync() {
+    db.subscribeToRealtime((change) => {
+      console.log('⚡ [Realtime Live Sync] Actualizando lista en pantalla automáticamente...', change);
+      this.handleDatabaseChanged(change);
+    });
+  }
+
+  /**
+   * Maneja la actualización reactiva de la interfaz ante un cambio en la base de datos.
+   */
+  async handleDatabaseChanged(detail = {}) {
+    // Si el modal de subida está abierto, refrescar su selector de materias
+    const uploadModal = document.getElementById('student-upload-modal');
+    if (uploadModal && uploadModal.classList.contains('active')) {
+      await StudentManager.refreshSubjects();
+    }
+
+    // Si el usuario está en el buscador y escribiendo activamente, actualizamos los resultados sin perder foco
+    if (this.currentView === 'buscador') {
+      const activeInput = document.getElementById('search-query-input');
+      if (activeInput && document.activeElement === activeInput) {
+        await this.refreshBuscadorResultsOnly();
+        return;
+      }
+    }
+
+    // Re-renderizar la vista activa para dibujar documentos y materias en tiempo real
+    await this.renderCurrentView();
+  }
+
+  /**
+   * Actualiza el grid de resultados y el selector de materias del buscador manteniendo el foco del input
+   */
+  async refreshBuscadorResultsOnly() {
+    const allDocs = await db.getAllDocuments();
+    const subjects = await db.getAllSubjects();
+
+    // Actualizar el selector de materias si existe en el DOM
+    const filterMateriaSelect = document.getElementById('filter-materia');
+    if (filterMateriaSelect) {
+      const currentSelected = filterMateriaSelect.value;
+      filterMateriaSelect.innerHTML = `
+        <option value="all">📁 Todas las Materias</option>
+        ${subjects.map(s => `<option value="${s.id}" ${currentSelected === s.id ? 'selected' : ''}>${s.name || s.nombre}</option>`).join('')}
+      `;
+    }
+
+    const queryInput = document.getElementById('search-query-input');
+    if (queryInput) {
+      this.searchFilters.query = queryInput.value;
+    }
+    const filteredDocs = LegalSearchEngine.filterDocuments(allDocs, this.searchFilters);
+    const resultsGrid = document.getElementById('search-results-grid');
+    const resultsCount = document.getElementById('results-count');
+
+    if (resultsCount) resultsCount.textContent = filteredDocs.length;
+    if (resultsGrid) {
+      resultsGrid.innerHTML = filteredDocs.length > 0 
+        ? filteredDocs.map(doc => this.renderDocumentCardHTML(doc)).join('')
+        : '<div class="alert alert-info" style="grid-column: 1/-1;"><p>No se encontraron documentos con los criterios de búsqueda especificados.</p></div>';
+      this.bindCardActions();
+    }
   }
 
   async navigate(viewName, params = {}) {
@@ -642,11 +715,11 @@ class LegalLibraryApp {
       StudentManager.open(activeSubId);
     });
 
-    document.getElementById('btn-admin-add-subject')?.addEventListener('click', () => {
-      const name = prompt('Ingresa el nombre de la nueva materia jurídica:');
-      if (name) {
-        const desc = prompt('Breve descripción de la materia:') || '';
-        AdminManager.createSubject(name, desc);
+    document.getElementById('btn-admin-add-subject')?.addEventListener('click', async () => {
+      const name = prompt('Ingresa el nombre de la nueva materia jurídica para agregar a Supabase:');
+      if (name && name.trim()) {
+        const desc = prompt('Breve descripción de la materia (opcional):') || '';
+        await AdminManager.createSubject(name.trim(), desc.trim());
       }
     });
 
@@ -1476,21 +1549,39 @@ class LegalLibraryApp {
 
     // Crear Materia
     const createSubForm = document.getElementById('form-create-subject');
-    createSubForm?.addEventListener('submit', (e) => {
+    createSubForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const name = document.getElementById('new-sub-name')?.value;
-      const desc = document.getElementById('new-sub-desc')?.value;
-      AdminManager.createSubject(name, desc);
+      const nameInput = document.getElementById('new-sub-name');
+      const descInput = document.getElementById('new-sub-desc');
+      const name = nameInput?.value;
+      const desc = descInput?.value;
+
+      if (!name || !name.trim()) {
+        window.showToast?.('Por favor ingresa un nombre para la materia.', 'warning');
+        return;
+      }
+
+      const success = await AdminManager.createSubject(name, desc);
+      if (success) {
+        createSubForm.reset();
+      }
     });
 
     // Eliminar Materia
     document.querySelectorAll('[data-action="delete-subject"]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        if (confirm('¿Deseas eliminar esta materia del catálogo?')) {
-          await db.deleteSubject(id);
-          window.showToast?.('Materia eliminada', 'info');
-          window.dispatchEvent(new CustomEvent('databaseChanged'));
+        if (confirm('⚠️ ¿Deseas eliminar permanentemente esta materia de la base de datos de Supabase?')) {
+          try {
+            await db.deleteSubject(id);
+            window.showToast?.('Materia eliminada exitosamente de Supabase', 'info');
+            window.dispatchEvent(new CustomEvent('databaseChanged'));
+          } catch (err) {
+            console.error('[Admin] Error al eliminar materia:', err);
+            const exactError = err?.message || err?.details || String(err);
+            window.showToast?.(`❌ Error al eliminar de Supabase: ${exactError}`, 'error');
+            alert(`⚠️ Error al eliminar la materia de Supabase:\n\n${exactError}`);
+          }
         }
       });
     });
