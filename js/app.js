@@ -718,8 +718,7 @@ class LegalLibraryApp {
     document.getElementById('btn-admin-add-subject')?.addEventListener('click', async () => {
       const name = prompt('Ingresa el nombre de la nueva materia jurídica para agregar a Supabase:');
       if (name && name.trim()) {
-        const desc = prompt('Breve descripción de la materia (opcional):') || '';
-        await AdminManager.createSubject(name.trim(), desc.trim());
+        await AdminManager.createSubject(name.trim());
       }
     });
 
@@ -1561,7 +1560,7 @@ class LegalLibraryApp {
         return;
       }
 
-      const success = await AdminManager.createSubject(name, desc);
+      const success = await AdminManager.createSubject(name.trim());
       if (success) {
         createSubForm.reset();
       }

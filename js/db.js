@@ -408,75 +408,42 @@ class LegalDatabase {
 
   /**
    * Inserta una nueva materia en Supabase en la tabla 'materias'.
-   * Lanza un error explícito si la operación falla en Supabase.
+   * Envía ÚNICAMENTE la propiedad 'nombre' para evitar el error '400 Bad Request'.
    */
   async addSubject(subjectData) {
     await this.initPromise;
     const supabase = getSupabase();
 
     if (!supabase) {
-      throw new Error('No hay conexión con Supabase. Verifica tu conexión a internet.');
+      const errorMsg = 'No hay conexión con Supabase. Verifica tu red.';
+      console.error('Error al insertar materia:', errorMsg);
+      alert('No se pudo agregar la materia: ' + errorMsg);
+      return null;
     }
 
     const rawName = typeof subjectData === 'string' ? subjectData : (subjectData.nombre || subjectData.name || '');
-    const nombreMateria = rawName.trim();
+    const nombreLimpio = rawName.trim();
 
-    if (!nombreMateria) {
-      throw new Error('El nombre de la materia es obligatorio.');
+    if (!nombreLimpio) {
+      const errorMsg = 'El nombre de la materia no puede estar vacío.';
+      console.error('Error al insertar materia:', errorMsg);
+      alert('No se pudo agregar la materia: ' + errorMsg);
+      return null;
     }
 
-    const desc = typeof subjectData === 'object' ? (subjectData.descripcion || subjectData.desc || '').trim() : '';
-    const icon = typeof subjectData === 'object' ? (subjectData.icono || subjectData.icon || 'book-open') : 'book-open';
-    const slugId = typeof subjectData === 'object' && subjectData.id 
-      ? subjectData.id 
-      : nombreMateria.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_');
-
-    // Intentar inserción con objeto estándar (nombre, descripcion, icono, id)
-    let { data, error } = await supabase
+    // 1. Enviar ÚNICAMENTE la propiedad 'nombre' (sin id, sin timestamps, sin nulls)
+    const { data, error } = await supabase
       .from(TABLE_SUBJECTS)
-      .insert([{
-        id: slugId,
-        nombre: nombreMateria,
-        name: nombreMateria,
-        descripcion: desc,
-        desc: desc,
-        icon: icon
-      }])
-      .select();
+      .insert([{ nombre: nombreLimpio }]);
 
-    // Si falla por columnas adicionales no existentes, intentar inserción básica: [{ nombre: nombreMateria }]
+    // 2. Capturar cualquier error y alertar
     if (error) {
-      const retryNombre = await supabase
-        .from(TABLE_SUBJECTS)
-        .insert([{ nombre: nombreMateria }])
-        .select();
-
-      if (!retryNombre.error) {
-        data = retryNombre.data;
-        error = null;
-      } else {
-        // Intentar con { name: nombreMateria }
-        const retryName = await supabase
-          .from(TABLE_SUBJECTS)
-          .insert([{ name: nombreMateria }])
-          .select();
-
-        if (!retryName.error) {
-          data = retryName.data;
-          error = null;
-        } else {
-          // Mantener el error más descriptivo
-          error = retryNombre.error || error;
-        }
-      }
+      console.error('Error al insertar materia:', error);
+      alert('No se pudo agregar la materia: ' + error.message);
+      return null;
     }
 
-    if (error) {
-      console.error('[Supabase DB] Error al insertar materia en Supabase:', error);
-      throw new Error(error.message || error.details || error.hint || 'No se pudo insertar la materia en Supabase.');
-    }
-
-    return data && data[0] ? data[0] : { id: slugId, nombre: nombreMateria, name: nombreMateria };
+    return data && data[0] ? data[0] : { nombre: nombreLimpio };
   }
 
   /**
