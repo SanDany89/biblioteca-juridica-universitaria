@@ -55,13 +55,22 @@ export class LegalSearchEngine {
         }
       }
 
-      // 5. Filtro por Ámbito / Nivel
+      // 5. Filtro por Ámbito / Nivel (Local / Durango, Federal / Nacional, Internacional)
       if (level && level !== 'all') {
-        if (level === 'durango' && !(doc.level || '').toLowerCase().includes('durango') && !(doc.title || '').toLowerCase().includes('durango')) {
-          return false;
-        }
-        if (level === 'federal' && !(doc.level || '').toLowerCase().includes('nacional') && !(doc.level || '').toLowerCase().includes('federal')) {
-          return false;
+        const lvl = level.toLowerCase();
+        const docLvl = (doc.level || '').toLowerCase();
+        const docTitle = (doc.title || '').toLowerCase();
+        const docSub = (doc.subject || '').toLowerCase();
+
+        if (lvl === 'durango' || lvl === 'local') {
+          const isDurango = docLvl.includes('durango') || docLvl.includes('local') || docLvl.includes('estatal') || docTitle.includes('durango');
+          if (!isDurango) return false;
+        } else if (lvl === 'federal' || lvl === 'nacional') {
+          const isFederal = docLvl.includes('federal') || docLvl.includes('nacional') || docTitle.includes('cpeum') || docTitle.includes('general de') || docTitle.includes('código nacional');
+          if (!isFederal) return false;
+        } else if (lvl === 'internacional') {
+          const isInternacional = docLvl.includes('internacional') || docLvl.includes('tratado') || docLvl.includes('convencion') || docTitle.includes('tratado') || docTitle.includes('convención') || docTitle.includes('declaración') || docTitle.includes('pacto') || docSub.includes('internacional') || doc.subjectId === 'internacional';
+          if (!isInternacional) return false;
         }
       }
 

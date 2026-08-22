@@ -536,7 +536,7 @@ class LegalLibraryApp {
             <button class="chip-btn" data-search="Constitución">📜 CPEUM y Durango</button>
             <button class="chip-btn" data-search="Código">⚖️ Códigos Penales y Civiles</button>
             <button class="chip-btn" data-search="Amparo">🛡️ Juicio de Amparo</button>
-            <button class="chip-btn" data-search="Formato">📝 Machotes y Demandas</button>
+            <button class="chip-btn" data-search="Formato">📝 Formatos y Demandas</button>
             <button class="chip-btn" data-search="Jurisprudencia">🏛️ Jurisprudencia SCJN</button>
           </div>
         </div>
@@ -583,7 +583,7 @@ class LegalLibraryApp {
             <p style="color: rgba(255,255,255,0.85); margin-bottom: 1.5rem;">
               ${auth.isAdmin() 
                 ? 'Como administrador puedes subir nuevos archivos PDF a Supabase Storage, moderar la cola de revisión y registrar nuevo material jurídico.' 
-                : 'Accede a la legislación federal de México, leyes vigentes de Durango, criterios de la SCJN y machotes para tu formación académica.'}
+                : 'Accede a la legislación federal de México, leyes vigentes de Durango, criterios de la SCJN y formatos jurídicos para tu formación académica.'}
             </p>
             ${auth.isAdmin() ? `
               <button class="btn btn-gold btn-lg" id="btn-cta-upload">
@@ -764,7 +764,7 @@ class LegalLibraryApp {
               <option value="Constitución" ${this.searchFilters.docType === 'Constitución' ? 'selected' : ''}>📜 Constituciones</option>
               <option value="Código" ${this.searchFilters.docType === 'Código' ? 'selected' : ''}>⚖️ Códigos</option>
               <option value="Ley" ${this.searchFilters.docType === 'Ley' ? 'selected' : ''}>📖 Leyes</option>
-              <option value="Formato" ${this.searchFilters.docType === 'Formato' ? 'selected' : ''}>📝 Formatos / Machotes</option>
+              <option value="Formato" ${this.searchFilters.docType === 'Formato' ? 'selected' : ''}>📝 Formatos Jurídicos</option>
               <option value="Jurisprudencia" ${this.searchFilters.docType === 'Jurisprudencia' ? 'selected' : ''}>🏛️ Jurisprudencia SCJN</option>
               <option value="Estudiante" ${this.searchFilters.docType === 'Estudiante' ? 'selected' : ''}>🎓 PDFs de Estudiantes</option>
             </select>
@@ -780,8 +780,9 @@ class LegalLibraryApp {
             <!-- Ámbito / Nivel -->
             <select id="filter-level" class="filter-select">
               <option value="all" ${this.searchFilters.level === 'all' ? 'selected' : ''}>🌐 Todos los Ámbitos</option>
-              <option value="federal" ${this.searchFilters.level === 'federal' ? 'selected' : ''}>🇲🇽 Nacional (Federal)</option>
-              <option value="durango" ${this.searchFilters.level === 'durango' ? 'selected' : ''}>🌲 Estatal (Durango)</option>
+              <option value="durango" ${this.searchFilters.level === 'durango' ? 'selected' : ''}>🏛️ Local (Estado de Durango)</option>
+              <option value="federal" ${this.searchFilters.level === 'federal' ? 'selected' : ''}>🇲🇽 Federal / Nacional</option>
+              <option value="internacional" ${this.searchFilters.level === 'internacional' ? 'selected' : ''}>🌐 Internacional (Tratados y Convenciones)</option>
             </select>
 
             <!-- Ordenar -->
@@ -867,49 +868,114 @@ class LegalLibraryApp {
   }
 
   /* ==========================================================================
-     VISTA 4: LEYES Y CÓDIGOS (FEDERAL Y DURANGO)
+     VISTA 4: LEYES Y CÓDIGOS (LOCAL DURANGO, FEDERAL E INTERNACIONAL)
      ========================================================================== */
   async renderLeyes(container) {
     const allDocs = await db.getAllDocuments();
-    const federalDocs = allDocs.filter(d => 
-      (d.level || '').toLowerCase().includes('nacional') || (d.level || '').toLowerCase().includes('federal') || d.title.includes('CPEUM')
-    );
+
+    // 1. Ámbito Local (Estado de Durango)
     const durangoDocs = allDocs.filter(d => 
-      (d.level || '').toLowerCase().includes('durango') || d.title.toLowerCase().includes('durango')
+      (d.level || '').toLowerCase().includes('durango') || 
+      (d.level || '').toLowerCase().includes('local') ||
+      (d.level || '').toLowerCase().includes('estatal') ||
+      d.title.toLowerCase().includes('durango') ||
+      (d.source || '').toLowerCase().includes('durango')
+    );
+
+    // 2. Ámbito Internacional (Tratados y Convenciones)
+    const internacionalDocs = allDocs.filter(d => 
+      (d.level || '').toLowerCase().includes('internacional') ||
+      (d.level || '').toLowerCase().includes('tratado') ||
+      (d.level || '').toLowerCase().includes('convencion') ||
+      d.title.toLowerCase().includes('tratado') ||
+      d.title.toLowerCase().includes('convención') ||
+      d.title.toLowerCase().includes('declaración') ||
+      d.title.toLowerCase().includes('pacto') ||
+      d.subjectId === 'internacional' ||
+      (d.subject || '').toLowerCase().includes('internacional')
+    );
+
+    // 3. Ámbito Federal / Nacional
+    const federalDocs = allDocs.filter(d => 
+      !durangoDocs.includes(d) && 
+      !internacionalDocs.includes(d) && (
+        (d.level || '').toLowerCase().includes('nacional') || 
+        (d.level || '').toLowerCase().includes('federal') || 
+        d.title.includes('CPEUM') ||
+        d.title.toLowerCase().includes('código nacional') ||
+        d.title.toLowerCase().includes('general de') ||
+        d.docType.toLowerCase().includes('ley') ||
+        d.docType.toLowerCase().includes('código') ||
+        d.docType.toLowerCase().includes('constitución')
+      )
     );
 
     container.innerHTML = `
       <div class="container" style="padding-top: 2rem;">
         <div class="section-header">
           <div class="section-title-wrap">
-            <h2 class="section-title">⚖️ Leyes, Códigos y Constituciones</h2>
-            <p class="section-subtitle">Marco normativo nacional de los Estados Unidos Mexicanos y legislación de Victoria de Durango.</p>
+            <h2 class="section-title">⚖️ Leyes, Códigos y Normatividad</h2>
+            <p class="section-subtitle">Consulta estructurada del marco normativo local de Durango, legislación federal de México e instrumentos internacionales.</p>
           </div>
         </div>
 
-        <!-- Bloque Federal -->
-        <div style="margin-bottom: 3.5rem;">
-          <div class="section-header" style="border-bottom-color: #1d4ed8;">
+        <!-- 1. BLOQUE LOCAL (ESTADO DE DURANGO) -->
+        <div style="margin-bottom: 3.5rem; background: var(--color-bg-card); padding: 1.75rem; border-radius: var(--radius-lg); border: 1px solid var(--color-border); border-left: 5px solid #059669;">
+          <div class="section-header" style="border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div class="section-title-wrap">
-              <h3 class="section-title" style="font-size: 1.4rem;">🇲🇽 Ámbito Nacional (Leyes Federales y CPEUM)</h3>
-              <p class="section-subtitle">Constitución Federal, códigos nacionales y leyes reglamentarias vigentes del Diario Oficial de la Federación (DOF)</p>
+              <span class="badge" style="background: rgba(5, 150, 105, 0.15); color: #059669; font-weight: 700; margin-bottom: 0.4rem; display: inline-block;">🏛️ Ámbito Local (Estado de Durango)</span>
+              <h3 class="section-title" style="font-size: 1.4rem; margin: 0;">Legislación Estatal y Códigos de Durango</h3>
+              <p class="section-subtitle" style="margin: 0.3rem 0 0 0;">Constitución de Durango, Códigos Estatales (Penal, Civil) y leyes vigentes del Estado de Durango.</p>
             </div>
+            <a href="https://congresodurango.gob.mx/leyes/" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="border-color: #059669; color: #059669;">
+              <span>🏛️ Consultar fuente oficial: Congreso del Estado de Durango ↗</span>
+            </a>
           </div>
           <div class="documents-grid">
-            ${federalDocs.map(d => this.renderDocumentCardHTML(d)).join('')}
+            ${durangoDocs.length > 0
+              ? durangoDocs.map(d => this.renderDocumentCardHTML(d)).join('')
+              : '<div class="alert alert-info" style="grid-column: 1/-1;"><p>No hay leyes locales registradas actualmente. Los administradores pueden incorporar PDFs desde el panel.</p></div>'
+            }
           </div>
         </div>
 
-        <!-- Bloque Estatal Durango -->
-        <div style="margin-bottom: 3rem;">
-          <div class="section-header" style="border-bottom-color: #059669;">
+        <!-- 2. BLOQUE FEDERAL / NACIONAL -->
+        <div style="margin-bottom: 3.5rem; background: var(--color-bg-card); padding: 1.75rem; border-radius: var(--radius-lg); border: 1px solid var(--color-border); border-left: 5px solid #1d4ed8;">
+          <div class="section-header" style="border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div class="section-title-wrap">
-              <h3 class="section-title" style="font-size: 1.4rem;">🌲 Ámbito Estatal (Estado de Durango / Victoria de Durango)</h3>
-              <p class="section-subtitle">Constitución de Durango, Códigos Estatales (Penal, Civil) y Ley Orgánica del Poder Judicial de Durango</p>
+              <span class="badge" style="background: rgba(29, 78, 216, 0.15); color: #1d4ed8; font-weight: 700; margin-bottom: 0.4rem; display: inline-block;">🇲🇽 Ámbito Federal / Nacional</span>
+              <h3 class="section-title" style="font-size: 1.4rem; margin: 0;">Legislación Federal, CPEUM y Códigos Nacionales</h3>
+              <p class="section-subtitle" style="margin: 0.3rem 0 0 0;">Constitución Federal (CPEUM), códigos nacionales y leyes reglamentarias vigentes de los Estados Unidos Mexicanos.</p>
             </div>
+            <a href="https://www.diputados.gob.mx/LeyesBiblio/" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="border-color: #1d4ed8; color: #1d4ed8;">
+              <span>🇲🇽 Consultar fuente oficial: Cámara de Diputados ↗</span>
+            </a>
           </div>
           <div class="documents-grid">
-            ${durangoDocs.map(d => this.renderDocumentCardHTML(d)).join('')}
+            ${federalDocs.length > 0
+              ? federalDocs.map(d => this.renderDocumentCardHTML(d)).join('')
+              : '<div class="alert alert-info" style="grid-column: 1/-1;"><p>No hay leyes federales registradas actualmente.</p></div>'
+            }
+          </div>
+        </div>
+
+        <!-- 3. BLOQUE INTERNACIONAL -->
+        <div style="margin-bottom: 3rem; background: var(--color-bg-card); padding: 1.75rem; border-radius: var(--radius-lg); border: 1px solid var(--color-border); border-left: 5px solid #d97706;">
+          <div class="section-header" style="border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div class="section-title-wrap">
+              <span class="badge" style="background: rgba(217, 119, 6, 0.15); color: #d97706; font-weight: 700; margin-bottom: 0.4rem; display: inline-block;">🌐 Ámbito Internacional</span>
+              <h3 class="section-title" style="font-size: 1.4rem; margin: 0;">Tratados, Convenciones y Derechos Humanos</h3>
+              <p class="section-subtitle" style="margin: 0.3rem 0 0 0;">Tratados internacionales suscritos y ratificados por el Estado Mexicano en términos del Artículo 133 Constitucional.</p>
+            </div>
+            <a href="https://bj.scjn.gob.mx/tratados" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="border-color: #d97706; color: #d97706;">
+              <span>🌐 Consultar Tratados Internacionales (SCJN) ↗</span>
+            </a>
+          </div>
+          <div class="documents-grid">
+            ${internacionalDocs.length > 0
+              ? internacionalDocs.map(d => this.renderDocumentCardHTML(d)).join('')
+              : '<div class="alert alert-info" style="grid-column: 1/-1;"><p>No hay tratados internacionales cargados actualmente. Puedes consultar el catálogo oficial de la SCJN a través del enlace superior.</p></div>'
+            }
           </div>
         </div>
       </div>
@@ -978,7 +1044,7 @@ class LegalLibraryApp {
   }
 
   /* ==========================================================================
-     VISTA 7: FORMATOS Y EJEMPLOS (MACHOTES JURÍDICOS)
+     VISTA 7: FORMATOS Y MODELOS JURÍDICOS PRÁCTICOS
      ========================================================================== */
   async renderFormatos(container) {
     const allDocs = await db.getAllDocuments();
@@ -988,7 +1054,7 @@ class LegalLibraryApp {
       <div class="container" style="padding-top: 2rem;">
         <div class="section-header">
           <div class="section-title-wrap">
-            <h2 class="section-title">📝 Formatos y Machotes Jurídicos Prácticos</h2>
+            <h2 class="section-title">📝 Formatos y Modelos Jurídicos Prácticos</h2>
             <p class="section-subtitle">Modelos de demandas, contratos, recursos y amparos listos para estudio y práctica forense.</p>
           </div>
         </div>

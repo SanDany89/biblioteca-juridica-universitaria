@@ -1,6 +1,6 @@
 /**
  * pdf-viewer.js - Visor de Documentos y Lector Jurídico Integrado
- * Permite visualizar PDFs reales, leer artículos constitucionales, consultar machotes y descargar.
+ * Permite visualizar PDFs reales, leer artículos constitucionales, consultar formatos jurídicos y descargar.
  */
 
 export class DocumentViewer {
@@ -227,14 +227,14 @@ export class DocumentViewer {
       return;
     }
 
-    // Caso 3: Formato / Machote con vista previa de texto
+    // Caso 3: Formato Jurídico con vista previa de texto
     if (doc.contentPreview) {
       container.innerHTML = `
         <div class="viewer-content-reader">
           <div class="doc-official-banner format-banner">
             <div class="banner-icon">📝</div>
             <div class="banner-text">
-              <h4>Formato / Machote Jurídico de Práctica</h4>
+              <h4>Formato Jurídico Práctico</h4>
               <p>${doc.description}</p>
               <small class="text-muted">Puedes copiar el texto completo o adaptarlo a tu caso concreto con los datos requeridos entre corchetes [ ].</small>
             </div>

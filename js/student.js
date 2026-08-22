@@ -68,8 +68,19 @@ export class StudentManager {
                   <option value="Leyes y Códigos">📜 Leyes y Códigos</option>
                   <option value="Jurisprudencia">🏛️ Jurisprudencia y Tesis</option>
                   <option value="Apuntes y Guías">📚 Apuntes y Guías Académicas</option>
-                  <option value="Formatos y Machotes">📝 Formatos y Machotes</option>
+                  <option value="Formatos Jurídicos">📝 Formatos Jurídicos</option>
                   <option value="PDF Compartido" selected>📑 Documento / PDF General</option>
+                </select>
+              </div>
+
+              <!-- Ámbito / Tipo de Ley -->
+              <div class="form-group">
+                <label for="upload-level" class="form-label">Ámbito / Tipo de Ley <span class="req">*</span></label>
+                <select id="upload-level" class="form-select" required>
+                  <option value="Local (Durango)">🏛️ Local (Estado de Durango)</option>
+                  <option value="Federal / Nacional" selected>🇲🇽 Federal / Nacional</option>
+                  <option value="Internacional">🌐 Internacional (Tratados y Convenciones)</option>
+                  <option value="Aporte Académico General">📚 Aporte Académico General</option>
                 </select>
               </div>
 
@@ -319,6 +330,8 @@ export class StudentManager {
     const subjectName = selectedOption.dataset.name || selectedOption.text;
     const subjectId = selectedOption.value;
 
+    const level = document.getElementById('upload-level')?.value || 'Federal / Nacional';
+
     const newDoc = {
       title,
       subject: subjectName,
@@ -329,7 +342,7 @@ export class StudentManager {
       description: desc,
       keywords: keywords,
       source: source,
-      level: 'Oficial / Académico',
+      level: level,
       fileName: this.selectedFile.name
     };
 

@@ -185,7 +185,7 @@ export const INITIAL_DOCUMENTS = [
     featured: false
   },
 
-  // FORMATOS Y EJEMPLOS (MACHOTES JURÍDICOS)
+  // FORMATOS Y MODELOS JURÍDICOS
   {
     id: 'fmt-amparo-indirecto',
     title: 'Modelo de Demanda de Juicio de Amparo Indirecto',
@@ -194,10 +194,10 @@ export const INITIAL_DOCUMENTS = [
     author: 'Academia de Práctica Forense Universitaria',
     publishDate: '2024-01-15',
     lastUpdate: '2024-01-15',
-    docType: 'Formato / Machote Jurídico',
+    docType: 'Formato Jurídico',
     level: 'Práctica Profesional',
     description: 'Estructura formal para la formulación de una demanda de amparo indirecto ante Juzgado de Distrito. Contiene rubro, autoridad responsable, acto reclamado, antecedentes bajo protesta de decir verdad, conceptos de violación y solicitud de suspensión provisional.',
-    keywords: ['Formato', 'Machote', 'Amparo Indirecto', 'Conceptos de Violación', 'Suspensión'],
+    keywords: ['Formato', 'Modelo', 'Amparo Indirecto', 'Conceptos de Violación', 'Suspensión'],
     source: 'Clínica de Litigio Estratégico Universitario',
     verificationStatus: 'Material verificado',
     isVerified: true,
@@ -224,7 +224,7 @@ Que por medio del presente escrito y con fundamento en los artículos 103, fracc
     author: 'Seminario de Derecho Civil y Procesal',
     publishDate: '2024-02-10',
     lastUpdate: '2024-02-10',
-    docType: 'Formato / Machote Jurídico',
+    docType: 'Formato Jurídico',
     level: 'Práctica Forense',
     description: 'Plantilla estructurada de demanda ordinaria civil ante juzgados del fuero común de Durango. Incluye prestaciones, hechos circunstanciados, capítulo de derecho, pruebas y petitorios conformes al Código de Procedimientos Civiles.',
     keywords: ['Demanda Civil', 'Ordinario Civil', 'Incumplimiento', 'Contratos', 'Durango', 'Formato'],
@@ -261,7 +261,7 @@ D) El pago de gastos y costas que el presente juicio origine...`
     author: 'Colegio de Abogados',
     publishDate: '2024-01-20',
     lastUpdate: '2024-01-20',
-    docType: 'Formato / Machote Jurídico',
+    docType: 'Formato Jurídico',
     level: 'Práctica Notarial y Contractual',
     description: 'Contrato privado de arrendamiento de casa habitación conforme a los artículos aplicables del Código Civil del Estado de Durango. Incluye cláusulas de renta, depósito en garantía, fiador/aval, obligaciones de mantenimiento y causales de rescisión.',
     keywords: ['Contrato', 'Arrendamiento', 'Inmueble', 'Durango', 'Fiador', 'Cláusulas', 'Civil'],
@@ -290,7 +290,7 @@ SEGUNDA. RENTA: El ARRENDATARIO se obliga a pagar mensualmente la cantidad de $[
     author: 'Academia de Derecho Penal y Criminología',
     publishDate: '2024-02-28',
     lastUpdate: '2024-02-28',
-    docType: 'Formato / Machote Jurídico',
+    docType: 'Formato Jurídico',
     level: 'Práctica Penal',
     description: 'Modelo formal para la presentación de denuncia de hechos con apariencia de delito ante la Fiscalía General del Estado de Durango (FGED) o FGR. Contiene relatoría fáctica pormenorizada, señalamiento de presuntos responsables y ofrecimiento de datos de prueba iniciales.',
     keywords: ['Denuncia', 'Querella', 'Fiscalía Durango', 'FGED', 'Ministerio Público', 'Penal'],
