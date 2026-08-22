@@ -26,6 +26,9 @@ class LegalLibraryApp {
   }
 
   async init() {
+    // 0. Limpiar datos obsoletos del localStorage (materias/documentos estáticos)
+    this.clearObsoleteLocalStorage();
+
     // 1. Inicializar submódulos
     DocumentViewer.init();
     StudentManager.init();
@@ -43,6 +46,26 @@ class LegalLibraryApp {
     const hash = window.location.hash.replace('#', '') || 'inicio';
     await this.navigate(hash);
   }
+
+  /**
+   * Elimina del localStorage del navegador cualquier dato estático sembrado
+   * por versiones anteriores de la app. A partir de ahora la fuente única
+   * de verdad para documentos y materias es la base de datos Supabase.
+   */
+  clearObsoleteLocalStorage() {
+    const keysToRemove = [
+      'bju_documents',
+      'bju_subjects',
+      'bju_db_seeded'
+    ];
+    keysToRemove.forEach(key => {
+      if (localStorage.getItem(key) !== null) {
+        localStorage.removeItem(key);
+        console.info(`[Sincronización] Clave obsoleta eliminada del localStorage: "${key}"`);
+      }
+    });
+  }
+
 
   setupToastSystem() {
     let container = document.getElementById('toast-container');

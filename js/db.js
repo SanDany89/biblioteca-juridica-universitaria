@@ -1,11 +1,11 @@
 /**
- * db.js - Motor de Base de Datos y Almacenamiento en Nube con Supabase
- * Gestiona la subida directa de PDFs al bucket 'documentos-pdf', inserción en la
- * tabla 'documentos', consumo en vivo y persistencia local con IndexedDB.
+ * db.js - Motor de Base de Datos en Nube con Supabase
+ * Fuente ÚNICA de verdad: todas las materias y documentos se leen y escriben
+ * directamente en las tablas 'materias' y 'documentos' de Supabase.
+ * No se usan arrays estáticos, localStorage ni IndexedDB como fuentes de datos.
  */
 
-import { getSupabase, STORAGE_BUCKET, TABLE_DOCUMENTS } from './supabase-config.js';
-import { INITIAL_SUBJECTS, INITIAL_DOCUMENTS } from './data-seed.js';
+import { getSupabase, STORAGE_BUCKET, TABLE_DOCUMENTS, TABLE_SUBJECTS } from './supabase-config.js';
 
 const DB_NAME = 'BibliotecaJuridicaUniversitariaDB';
 const DB_VERSION = 1;
@@ -23,7 +23,9 @@ class LegalDatabase {
       if (!window.indexedDB) {
         console.warn('IndexedDB no soportado, usando almacenamiento local');
         this.useLocalStorage = true;
-        this.initLocalStorage();
+        // Limpiar claves estáticas del localStorage sin sembrar nuevas
+        const staleKeys = ['bju_documents', 'bju_subjects', 'bju_db_seeded'];
+        staleKeys.forEach(key => localStorage.removeItem(key));
         this.isReady = true;
         resolve(this);
         return;
@@ -49,46 +51,46 @@ class LegalDatabase {
       request.onsuccess = async (event) => {
         this.db = event.target.result;
         this.isReady = true;
-        await this.seedInitialDataIfEmpty();
+        // Limpiar datos estáticos locales para evitar inconsistencias entre usuarios
+        this.clearStaleLocalData();
         resolve(this);
       };
 
       request.onerror = (event) => {
         console.error('Error al abrir IndexedDB:', event.target.error);
         this.useLocalStorage = true;
-        this.initLocalStorage();
+        // En caso de error tampoco sembrar datos estáticos
+        const staleKeys = ['bju_documents', 'bju_subjects', 'bju_db_seeded'];
+        staleKeys.forEach(key => localStorage.removeItem(key));
         this.isReady = true;
         resolve(this);
       };
     });
   }
 
-  async seedInitialDataIfEmpty() {
-    const docCount = await this.countLocal('documents');
-    if (docCount === 0 && this.db) {
-      const tx = this.db.transaction(['documents', 'subjects'], 'readwrite');
-      const docStore = tx.objectStore('documents');
-      const subStore = tx.objectStore('subjects');
+  /**
+   * Limpia del localStorage y de IndexedDB todos los datos estáticos de materias
+   * y documentos sembrados en versiones anteriores, para forzar la lectura desde Supabase.
+   */
+  clearStaleLocalData() {
+    // Borrar claves de localStorage usadas por versiones anteriores
+    const staleKeys = [
+      'bju_documents',
+      'bju_subjects',
+      'bju_db_seeded'
+    ];
+    staleKeys.forEach(key => localStorage.removeItem(key));
 
-      for (const doc of INITIAL_DOCUMENTS) {
-        docStore.put(doc);
+    // Borrar stores de IndexedDB si están disponibles
+    if (this.db) {
+      try {
+        const tx = this.db.transaction(['documents', 'subjects'], 'readwrite');
+        tx.objectStore('documents').clear();
+        tx.objectStore('subjects').clear();
+      } catch (e) {
+        // Si falla no es crítico — Supabase es la fuente de verdad
+        console.warn('No se pudo limpiar IndexedDB:', e);
       }
-      for (const sub of INITIAL_SUBJECTS) {
-        subStore.put(sub);
-      }
-
-      return new Promise((res) => {
-        tx.oncomplete = () => res();
-      });
-    }
-  }
-
-  initLocalStorage() {
-    if (!localStorage.getItem('bju_documents')) {
-      localStorage.setItem('bju_documents', JSON.stringify(INITIAL_DOCUMENTS));
-    }
-    if (!localStorage.getItem('bju_subjects')) {
-      localStorage.setItem('bju_subjects', JSON.stringify(INITIAL_SUBJECTS));
     }
   }
 
@@ -214,71 +216,42 @@ class LegalDatabase {
   }
 
   /* ==========================================================================
-     CONSULTA DE DOCUMENTOS (SUPABASE + CATÁLOGO BASE)
+     CONSULTA DE DOCUMENTOS (SOLO SUPABASE)
      ========================================================================== */
 
   /**
-   * Obtiene la lista completa de documentos consumiendo directamente la tabla 'documentos'
-   * de Supabase y fusionándola con los documentos legales base.
+   * Obtiene la lista completa de documentos EXCLUSIVAMENTE desde la tabla
+   * 'documentos' de Supabase. No mezcla datos locales ni estáticos.
    */
   async getAllDocuments() {
     await this.initPromise;
     const supabase = getSupabase();
-    let supabaseDocs = [];
 
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from(TABLE_DOCUMENTS)
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.warn('Error consultando tabla documentos en Supabase:', error.message);
-        } else if (data && Array.isArray(data)) {
-          supabaseDocs = data.map(row => this.mapSupabaseDoc(row));
-        }
-      } catch (err) {
-        console.warn('Fallo al conectar con Supabase para listar documentos:', err);
-      }
+    if (!supabase) {
+      console.warn('Supabase no disponible. No se pueden cargar documentos.');
+      return [];
     }
 
-    // Documentos locales / semillas base (CPEUM, Durango, Códigos, Machotes)
-    const localDocs = await this.getLocalDocuments();
+    try {
+      const { data, error } = await supabase
+        .from(TABLE_DOCUMENTS)
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    // Fusionar evitando duplicados por ID o por URL/Título
-    const combined = [...supabaseDocs];
-    const seenTitles = new Set(supabaseDocs.map(d => d.title.toLowerCase().trim()));
-
-    for (const doc of localDocs) {
-      if (!seenTitles.has(doc.title.toLowerCase().trim())) {
-        combined.push(doc);
-        seenTitles.add(doc.title.toLowerCase().trim());
+      if (error) {
+        console.warn('Error consultando tabla documentos en Supabase:', error.message);
+        return [];
       }
-    }
 
-    return combined;
-  }
-
-  async getLocalDocuments() {
-    if (this.useLocalStorage) {
-      return JSON.parse(localStorage.getItem('bju_documents') || '[]');
+      return Array.isArray(data) ? data.map(row => this.mapSupabaseDoc(row)) : [];
+    } catch (err) {
+      console.warn('Fallo al conectar con Supabase para listar documentos:', err);
+      return [];
     }
-    return new Promise((resolve) => {
-      try {
-        const tx = this.db.transaction('documents', 'readonly');
-        const store = tx.objectStore('documents');
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result || INITIAL_DOCUMENTS);
-        req.onerror = () => resolve(INITIAL_DOCUMENTS);
-      } catch (e) {
-        resolve(INITIAL_DOCUMENTS);
-      }
-    });
   }
 
   /**
-   * Obtener documento por ID (Supabase o Local)
+   * Obtener documento por ID (Supabase)
    */
   async getDocumentById(id) {
     const all = await this.getAllDocuments();
@@ -481,37 +454,53 @@ class LegalDatabase {
   }
 
   /* ==========================================================================
-     MATERIAS / CATEGORÍAS JURÍDICAS
+     MATERIAS / CATEGORÍAS JURÍDICAS (SOLO SUPABASE)
      ========================================================================== */
+
+  /**
+   * Obtiene la lista de materias EXCLUSIVAMENTE desde la tabla 'materias' de Supabase.
+   * Los conteos de documentos se calculan dinámicamente.
+   * Si la tabla no existe en Supabase, devuelve array vacío.
+   */
   async getAllSubjects() {
     await this.initPromise;
+    const supabase = getSupabase();
+
+    if (!supabase) {
+      console.warn('Supabase no disponible. No se pueden cargar materias.');
+      return [];
+    }
+
     let subjects = [];
+    try {
+      const { data, error } = await supabase
+        .from(TABLE_SUBJECTS)
+        .select('*')
+        .order('name', { ascending: true });
 
-    if (this.useLocalStorage) {
-      subjects = JSON.parse(localStorage.getItem('bju_subjects') || '[]');
-    } else {
-      subjects = await new Promise((resolve) => {
-        try {
-          const tx = this.db.transaction('subjects', 'readonly');
-          const store = tx.objectStore('subjects');
-          const req = store.getAll();
-          req.onsuccess = () => resolve(req.result || INITIAL_SUBJECTS);
-          req.onerror = () => resolve(INITIAL_SUBJECTS);
-        } catch (e) {
-          resolve(INITIAL_SUBJECTS);
-        }
-      });
+      if (error) {
+        console.warn('Error consultando tabla materias en Supabase:', error.message);
+        return [];
+      }
+
+      subjects = Array.isArray(data) ? data.map(row => ({
+        id:   row.id   || row.slug || String(row.id),
+        name: row.name || row.nombre || 'Sin nombre',
+        icon: row.icon || row.icono || 'book-open',
+        desc: row.desc || row.descripcion || '',
+        count: 0
+      })) : [];
+    } catch (err) {
+      console.warn('Fallo al conectar con Supabase para listar materias:', err);
+      return [];
     }
 
-    if (!subjects || subjects.length === 0) {
-      subjects = INITIAL_SUBJECTS;
-    }
-
-    // Calcular conteo dinámico de documentos
+    // Calcular conteo dinámico de documentos desde Supabase
     const allDocs = await this.getAllDocuments();
     return subjects.map(sub => {
-      const count = allDocs.filter(d => 
-        (d.subjectId === sub.id || (d.subject && d.subject.toLowerCase() === sub.name.toLowerCase())) &&
+      const count = allDocs.filter(d =>
+        (d.subjectId === sub.id ||
+         (d.subject && d.subject.toLowerCase() === sub.name.toLowerCase())) &&
         d.verificationStatus !== 'Rechazado'
       ).length;
       return { ...sub, count };
@@ -520,53 +509,56 @@ class LegalDatabase {
 
   async addSubject(subjectData) {
     await this.initPromise;
+    const supabase = getSupabase();
+
     const sub = {
-      id: subjectData.id || subjectData.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '_'),
+      id:   subjectData.id   || subjectData.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_'),
       name: subjectData.name,
       icon: subjectData.icon || 'book-open',
       desc: subjectData.desc || 'Documentos y doctrina de la materia.',
       count: 0
     };
 
-    if (this.useLocalStorage) {
-      const subs = JSON.parse(localStorage.getItem('bju_subjects') || '[]');
-      subs.push(sub);
-      localStorage.setItem('bju_subjects', JSON.stringify(subs));
-      return sub;
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from(TABLE_SUBJECTS)
+          .insert([{ id: sub.id, name: sub.name, icon: sub.icon, desc: sub.desc }])
+          .select();
+
+        if (error) {
+          console.warn('Error al insertar materia en Supabase:', error.message);
+        } else if (data && data[0]) {
+          return { ...sub, ...data[0] };
+        }
+      } catch (err) {
+        console.warn('Error al guardar materia en Supabase:', err);
+      }
     }
 
-    return new Promise((resolve) => {
-      try {
-        const tx = this.db.transaction('subjects', 'readwrite');
-        const store = tx.objectStore('subjects');
-        store.put(sub);
-        tx.oncomplete = () => resolve(sub);
-        tx.onerror = () => resolve(sub);
-      } catch (e) {
-        resolve(sub);
-      }
-    });
+    return sub;
   }
 
   async deleteSubject(id) {
     await this.initPromise;
-    if (this.useLocalStorage) {
-      let subs = JSON.parse(localStorage.getItem('bju_subjects') || '[]');
-      subs = subs.filter(s => s.id !== id);
-      localStorage.setItem('bju_subjects', JSON.stringify(subs));
-      return true;
-    }
-    return new Promise((resolve) => {
+    const supabase = getSupabase();
+
+    if (supabase) {
       try {
-        const tx = this.db.transaction('subjects', 'readwrite');
-        const store = tx.objectStore('subjects');
-        store.delete(id);
-        tx.oncomplete = () => resolve(true);
-        tx.onerror = () => resolve(true);
-      } catch (e) {
-        resolve(true);
+        const { error } = await supabase
+          .from(TABLE_SUBJECTS)
+          .delete()
+          .eq('id', id);
+
+        if (error) {
+          console.warn('Error al eliminar materia en Supabase:', error.message);
+        }
+      } catch (err) {
+        console.warn('Error al eliminar materia en Supabase:', err);
       }
-    });
+    }
+
+    return true;
   }
 
   /* ==========================================================================

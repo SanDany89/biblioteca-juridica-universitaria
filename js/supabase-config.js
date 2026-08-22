@@ -8,6 +8,7 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const STORAGE_BUCKET = 'documentos-pdf';
 export const TABLE_DOCUMENTS = 'documentos';
+export const TABLE_SUBJECTS = 'materias';
 
 let supabaseClient = null;
 
