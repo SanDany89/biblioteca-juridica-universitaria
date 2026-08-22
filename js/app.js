@@ -15,6 +15,7 @@ class LegalLibraryApp {
   constructor() {
     this.currentView = 'inicio';
     this.currentSubjectFilter = 'all';
+    this.currentAdminTab = 'review-queue';
     this.searchFilters = {
       query: '',
       subjectId: 'all',
@@ -633,17 +634,46 @@ class LegalLibraryApp {
     const subjects = await db.getAllSubjects();
     const allDocs = await db.getAllDocuments();
 
-    let activeSubId = selectedSubjectId || this.currentSubjectFilter;
-    let filteredDocs = [];
+    const normalize = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-    if (activeSubId && activeSubId !== 'all') {
-      filteredDocs = allDocs.filter(d => 
-        (d.subjectId === activeSubId || d.subject.toLowerCase() === activeSubId.toLowerCase()) &&
-        (auth.isAdmin() || d.verificationStatus !== 'Rechazado')
-      );
+    let activeSubId = selectedSubjectId !== null && selectedSubjectId !== undefined ? selectedSubjectId : this.currentSubjectFilter;
+    if (!activeSubId) activeSubId = 'all';
+    this.currentSubjectFilter = activeSubId;
+
+    const activeSubNorm = normalize(activeSubId);
+
+    // Buscar objeto de la materia activa por ID o por Nombre
+    const currentSubjectObj = subjects.find(s => 
+      normalize(s.id) === activeSubNorm ||
+      normalize(s.name) === activeSubNorm ||
+      normalize(s.nombre) === activeSubNorm
+    );
+
+    let filteredDocs = [];
+    if (activeSubId !== 'all') {
+      const targetIdNorm = currentSubjectObj ? normalize(currentSubjectObj.id) : activeSubNorm;
+      const targetNameNorm = currentSubjectObj ? normalize(currentSubjectObj.name || currentSubjectObj.nombre) : activeSubNorm;
+
+      filteredDocs = allDocs.filter(d => {
+        if (!auth.isAdmin() && d.verificationStatus === 'Rechazado') return false;
+
+        const docSubIdNorm = normalize(d.subjectId);
+        const docSubNorm = normalize(d.subject);
+
+        return (
+          docSubIdNorm === targetIdNorm ||
+          docSubNorm === targetNameNorm ||
+          (targetIdNorm && docSubNorm.includes(targetIdNorm)) ||
+          (targetNameNorm && (docSubNorm.includes(targetNameNorm) || targetNameNorm.includes(docSubNorm)))
+        );
+      });
+    } else {
+      filteredDocs = allDocs.filter(d => auth.isAdmin() || d.verificationStatus !== 'Rechazado');
     }
 
-    const currentSubjectObj = subjects.find(s => s.id === activeSubId);
+    const currentSubjectDisplayName = currentSubjectObj 
+      ? (currentSubjectObj.name || currentSubjectObj.nombre) 
+      : (activeSubId === 'all' ? 'Todas las Materias' : activeSubId);
 
     container.innerHTML = `
       <div class="container" style="padding-top: 2rem;">
@@ -657,40 +687,47 @@ class LegalLibraryApp {
 
         <!-- Categorías Grid -->
         <div class="subjects-grid" style="margin-bottom: 2.5rem;">
-          <div class="subject-card ${activeSubId === 'all' ? 'active-category' : ''}" data-subject-filter="all" style="${activeSubId === 'all' ? 'border-color: var(--color-gold);' : ''}">
+          <div class="subject-card ${activeSubId === 'all' ? 'active-category' : ''}" data-subject-filter="all" style="cursor: pointer; ${activeSubId === 'all' ? 'border-color: var(--color-gold); background: var(--color-gold-light);' : ''}">
             <div class="subject-header">
               <div class="subject-icon-box">📚</div>
-              <span class="subject-count-pill">${allDocs.length}</span>
+              <span class="subject-count-pill">${allDocs.filter(d => auth.isAdmin() || d.verificationStatus !== 'Rechazado').length}</span>
             </div>
             <h3 class="subject-title">Todas las Materias</h3>
             <p class="subject-desc">Catálogo general con todo el contenido jurídico disponible.</p>
             <div class="subject-card-footer">
-              <span>Ver todos los documentos →</span>
+              <span>${activeSubId === 'all' ? '✓ Vista general activa' : 'Ver todos los documentos →'}</span>
             </div>
           </div>
-          ${subjects.map(sub => `
-            <div class="subject-card ${activeSubId === sub.id ? 'active-category' : ''}" data-subject-filter="${sub.id}" style="${activeSubId === sub.id ? 'border-color: var(--color-gold); background: var(--color-gold-light);' : ''}">
-              <div class="subject-header">
-                <div class="subject-icon-box">🏛️</div>
-                <span class="subject-count-pill">${sub.count}</span>
+          ${subjects.map(sub => {
+            const isSelected = activeSubId === sub.id || (currentSubjectObj && currentSubjectObj.id === sub.id) || (normalize(sub.name || sub.nombre) === activeSubNorm);
+            return `
+              <div class="subject-card ${isSelected ? 'active-category' : ''}" data-subject-filter="${sub.id}" style="cursor: pointer; ${isSelected ? 'border-color: var(--color-gold); background: var(--color-gold-light);' : ''}">
+                <div class="subject-header">
+                  <div class="subject-icon-box">🏛️</div>
+                  <span class="subject-count-pill">${sub.count}</span>
+                </div>
+                <h3 class="subject-title">${sub.name || sub.nombre}</h3>
+                <p class="subject-desc">${sub.desc || 'Materiales y legislación correspondiente.'}</p>
+                <div class="subject-card-footer">
+                  <span>${isSelected ? '✓ Materia seleccionada' : 'Explorar materia →'}</span>
+                </div>
               </div>
-              <h3 class="subject-title">${sub.name}</h3>
-              <p class="subject-desc">${sub.desc || 'Materiales y legislación correspondiente.'}</p>
-              <div class="subject-card-footer">
-                <span>Explorar materia →</span>
-              </div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
 
         <!-- Resultados de la materia seleccionada -->
-        ${activeSubId && activeSubId !== 'all' ? `
+        <div id="materias-results-section" style="padding-top: 1rem;">
           <div class="section-header">
             <div class="section-title-wrap">
-              <h3 class="section-title">Documentos de: ${currentSubjectObj ? currentSubjectObj.name : activeSubId}</h3>
+              <h3 class="section-title">
+                ${activeSubId === 'all' ? '📚 Catálogo General de Documentos' : `📁 Documentos de: ${currentSubjectDisplayName}`}
+              </h3>
               <p class="section-subtitle">Mostrando ${filteredDocs.length} documentos disponibles</p>
             </div>
-            <button class="btn btn-secondary btn-sm" id="btn-upload-for-subject">📤 Aportar PDF a esta materia</button>
+            ${activeSubId !== 'all' ? `
+              <button class="btn btn-secondary btn-sm" id="btn-upload-for-subject">📤 Aportar PDF a esta materia</button>
+            ` : ''}
           </div>
           <div class="documents-grid">
             ${filteredDocs.length > 0 
@@ -698,21 +735,23 @@ class LegalLibraryApp {
               : '<div class="alert alert-info" style="grid-column: 1/-1;"><p>No hay documentos cargados en esta materia aún. ¡Sé el primero en compartir un PDF!</p></div>'
             }
           </div>
-        ` : ''}
+        </div>
       </div>
     `;
 
     // Eventos de selección de materias
     document.querySelectorAll('[data-subject-filter]').forEach(card => {
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
+        e.preventDefault();
         const subId = card.getAttribute('data-subject-filter');
         this.currentSubjectFilter = subId;
         this.renderMaterias(container, subId);
+        document.getElementById('materias-results-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     });
 
     document.getElementById('btn-upload-for-subject')?.addEventListener('click', () => {
-      StudentManager.open(activeSubId);
+      StudentManager.open(currentSubjectObj ? currentSubjectObj.id : activeSubId);
     });
 
     document.getElementById('btn-admin-add-subject')?.addEventListener('click', async () => {
@@ -1306,6 +1345,21 @@ class LegalLibraryApp {
     const allDocs = await db.getAllDocuments();
     const subjects = await db.getAllSubjects();
 
+    if (!this.currentAdminTab) {
+      this.currentAdminTab = 'review-queue';
+    }
+
+    let initialTabHTML = '';
+    if (this.currentAdminTab === 'review-queue') {
+      initialTabHTML = this.renderAdminReviewQueueHTML(allDocs);
+    } else if (this.currentAdminTab === 'all-docs') {
+      initialTabHTML = this.renderAdminAllDocsTableHTML(allDocs);
+    } else if (this.currentAdminTab === 'subjects-mgr') {
+      initialTabHTML = this.renderAdminSubjectsManagerHTML(subjects);
+    } else if (this.currentAdminTab === 'backup-mgr') {
+      initialTabHTML = this.renderAdminBackupHTML();
+    }
+
     container.innerHTML = `
       <div class="container" style="padding-top: 2rem;">
         <div class="section-header">
@@ -1350,15 +1404,15 @@ class LegalLibraryApp {
 
         <!-- Tabs de Administración -->
         <div class="admin-tabs-nav">
-          <button class="admin-tab-btn active" data-admin-tab="review-queue">📋 Cola de Revisión (${stats.pendingDocs})</button>
-          <button class="admin-tab-btn" data-admin-tab="all-docs">📚 Todos los Documentos (${stats.totalDocs})</button>
-          <button class="admin-tab-btn" data-admin-tab="subjects-mgr">📁 Gestión de Materias (${stats.totalSubjects})</button>
-          <button class="admin-tab-btn" data-admin-tab="backup-mgr">💾 Respaldo y Base de Datos</button>
+          <button class="admin-tab-btn ${this.currentAdminTab === 'review-queue' ? 'active' : ''}" data-admin-tab="review-queue">📋 Cola de Revisión (${stats.pendingDocs})</button>
+          <button class="admin-tab-btn ${this.currentAdminTab === 'all-docs' ? 'active' : ''}" data-admin-tab="all-docs">📚 Todos los Documentos (${stats.totalDocs})</button>
+          <button class="admin-tab-btn ${this.currentAdminTab === 'subjects-mgr' ? 'active' : ''}" data-admin-tab="subjects-mgr">📁 Gestión de Materias (${stats.totalSubjects})</button>
+          <button class="admin-tab-btn ${this.currentAdminTab === 'backup-mgr' ? 'active' : ''}" data-admin-tab="backup-mgr">💾 Respaldo y Base de Datos</button>
         </div>
 
         <!-- Contenido de Tabs -->
         <div id="admin-tab-content">
-          ${this.renderAdminReviewQueueHTML(allDocs)}
+          ${initialTabHTML}
         </div>
       </div>
     `;
@@ -1370,6 +1424,7 @@ class LegalLibraryApp {
         btn.classList.add('active');
 
         const tab = btn.getAttribute('data-admin-tab');
+        this.currentAdminTab = tab;
         const tabContent = document.getElementById('admin-tab-content');
 
         if (tab === 'review-queue') {
@@ -1501,32 +1556,41 @@ class LegalLibraryApp {
         <!-- Formulario Crear Materia -->
         <div class="about-card">
           <h3>➕ Agregar Nueva Materia</h3>
-          <form id="form-create-subject" style="margin-top: 1rem;">
-            <div class="form-group" style="margin-bottom: 1rem;">
-              <label class="form-label">Nombre de la Materia *</label>
-              <input type="text" id="new-sub-name" class="form-input" placeholder="Ej: Derecho Ambiental" required>
+          <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 1.25rem;">
+            Crea una nueva materia en la base de datos de Supabase. Estará disponible de inmediato en toda la plataforma.
+          </p>
+          <form id="form-create-subject">
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label for="new-sub-name" class="form-label">Nombre de la Materia <span class="req">*</span></label>
+              <input type="text" id="new-sub-name" class="form-input" placeholder="Ej: Derecho Ambiental, Derecho Notarial..." required autocomplete="off">
             </div>
-            <div class="form-group" style="margin-bottom: 1rem;">
-              <label class="form-label">Descripción</label>
-              <textarea id="new-sub-desc" class="form-textarea" rows="3" placeholder="Descripción de los temas y legislación..."></textarea>
-            </div>
-            <button type="submit" class="btn btn-gold" style="width: 100%;">Guardar Materia</button>
+            <button type="submit" id="btn-submit-create-subject" class="btn btn-gold" style="width: 100%;">
+              <span>➕ Guardar Materia en Supabase</span>
+            </button>
           </form>
         </div>
 
         <!-- Lista de Materias Existentes -->
         <div class="about-card">
-          <h3>📁 Materias Activas en la Biblioteca (${subjects.length})</h3>
-          <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
-            ${subjects.map(s => `
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--color-bg-alt); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                <div>
-                  <strong style="color: var(--color-primary-dark);">${s.name}</strong>
-                  <br><small class="text-muted">${s.count} documentos asociados</small>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>📁 Materias Activas en Supabase (${subjects.length})</h3>
+            <span class="badge badge-verified">Supabase en Tiempo Real</span>
+          </div>
+          <div id="admin-subjects-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 520px; overflow-y: auto; padding-right: 0.25rem;">
+            ${subjects.length > 0 ? subjects.map(s => `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.1rem; background: var(--color-bg-alt); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <span style="font-size: 1.4rem;">🏛️</span>
+                  <div>
+                    <strong style="color: var(--color-primary-dark); font-size: 0.95rem;">${s.name || s.nombre}</strong>
+                    <br><small class="text-muted">${s.count} documento(s) asociado(s) • ID: <code>${s.id}</code></small>
+                  </div>
                 </div>
-                <button class="btn btn-danger btn-sm" data-action="delete-subject" data-id="${s.id}" title="Eliminar materia">🗑️</button>
+                <button class="btn btn-danger btn-sm" data-action="delete-subject" data-id="${s.id}" data-name="${s.name || s.nombre}" title="Eliminar materia de Supabase" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                  <span>🗑️ Eliminar</span>
+                </button>
               </div>
-            `).join('')}
+            `).join('') : '<p class="text-muted">No hay materias registradas en Supabase.</p>'}
           </div>
         </div>
       </div>
@@ -1612,42 +1676,46 @@ class LegalLibraryApp {
       });
     });
 
-    // Crear Materia
+    // Crear Materia (Asíncrono con control de errores y limpieza de campo)
     const createSubForm = document.getElementById('form-create-subject');
     createSubForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const nameInput = document.getElementById('new-sub-name');
-      const descInput = document.getElementById('new-sub-desc');
-      const name = nameInput?.value;
-      const desc = descInput?.value;
+      const submitBtn = document.getElementById('btn-submit-create-subject');
+      const name = nameInput?.value?.trim();
 
-      if (!name || !name.trim()) {
+      if (!name) {
         window.showToast?.('Por favor ingresa un nombre para la materia.', 'warning');
         return;
       }
 
-      const success = await AdminManager.createSubject(name.trim());
-      if (success) {
-        createSubForm.reset();
+      try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span>⏳ Guardando en Supabase...</span>';
+        }
+
+        const success = await AdminManager.createSubject(name);
+        if (success && nameInput) {
+          nameInput.value = '';
+        }
+      } catch (err) {
+        console.error('[Admin] Error al agregar materia:', err);
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>➕ Guardar Materia en Supabase</span>';
+        }
       }
     });
 
-    // Eliminar Materia
+    // Eliminar Materia con Confirmación y Supabase
     document.querySelectorAll('[data-action="delete-subject"]').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
         const id = btn.getAttribute('data-id');
-        if (confirm('⚠️ ¿Deseas eliminar permanentemente esta materia de la base de datos de Supabase?')) {
-          try {
-            await db.deleteSubject(id);
-            window.showToast?.('Materia eliminada exitosamente de Supabase', 'info');
-            window.dispatchEvent(new CustomEvent('databaseChanged'));
-          } catch (err) {
-            console.error('[Admin] Error al eliminar materia:', err);
-            const exactError = err?.message || err?.details || String(err);
-            window.showToast?.(`❌ Error al eliminar de Supabase: ${exactError}`, 'error');
-            alert(`⚠️ Error al eliminar la materia de Supabase:\n\n${exactError}`);
-          }
-        }
+        const name = btn.getAttribute('data-name') || 'esta materia';
+        await AdminManager.deleteSubject(id, name);
       });
     });
 

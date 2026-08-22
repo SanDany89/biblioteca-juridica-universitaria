@@ -36,7 +36,18 @@ export class LegalSearchEngine {
 
       // 2. Filtro por Materia
       if (subjectId && subjectId !== 'all') {
-        if (doc.subjectId !== subjectId && doc.subject.toLowerCase() !== subjectId.toLowerCase()) {
+        const normalize = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const targetSubNorm = normalize(subjectId);
+        const docSubIdNorm = normalize(doc.subjectId);
+        const docSubNorm = normalize(doc.subject);
+
+        const matchesSubject = 
+          docSubIdNorm === targetSubNorm ||
+          docSubNorm === targetSubNorm ||
+          (targetSubNorm && docSubNorm.includes(targetSubNorm)) ||
+          (targetSubNorm && docSubIdNorm.includes(targetSubNorm));
+
+        if (!matchesSubject) {
           return false;
         }
       }

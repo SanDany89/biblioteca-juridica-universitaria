@@ -208,23 +208,64 @@ export class AdminManager {
     }
   }
 
-  // AGREGAR NUEVA MATERIA
+  // AGREGAR NUEVA MATERIA (SOLO ADMINISTRADOR)
   static async createSubject(name) {
+    if (!auth.isAdmin()) {
+      window.showToast?.('Se requieren permisos de Administrador para agregar materias.', 'warning');
+      return false;
+    }
+
     const nombreLimpio = (name || '').trim();
     if (!nombreLimpio) {
       window.showToast?.('Por favor ingresa un nombre para la materia.', 'warning');
       return false;
     }
 
-    const result = await db.addSubject(nombreLimpio);
-    if (!result) {
-      // El error ya fue capturado, loggeado y alertado en db.addSubject
+    try {
+      const result = await db.addSubject(nombreLimpio);
+      if (!result) {
+        return false;
+      }
+
+      window.showToast?.(`Materia "${nombreLimpio}" agregada exitosamente a Supabase ✅`, 'success');
+      window.dispatchEvent(new CustomEvent('databaseChanged'));
+      return true;
+    } catch (err) {
+      console.error('[AdminManager] Error al crear materia:', err);
+      window.showToast?.('Error al agregar la materia a Supabase', 'error');
+      return false;
+    }
+  }
+
+  // ELIMINAR MATERIA (SOLO ADMINISTRADOR)
+  static async deleteSubject(materiaId, materiaName = 'esta materia') {
+    if (!auth.isAdmin()) {
+      window.showToast?.('Se requieren permisos de Administrador para eliminar materias.', 'warning');
       return false;
     }
 
-    window.showToast?.(`Materia "${nombreLimpio}" agregada exitosamente a Supabase ✅`, 'success');
-    window.dispatchEvent(new CustomEvent('databaseChanged'));
-    return true;
+    if (!materiaId) {
+      window.showToast?.('ID de materia no válido.', 'warning');
+      return false;
+    }
+
+    const confirmed = confirm(`⚠️ ¿Estás seguro de que deseas eliminar la materia "${materiaName}" de la base de datos de Supabase?\n\nEsta acción no se puede deshacer.`);
+    if (!confirmed) {
+      return false;
+    }
+
+    try {
+      await db.deleteSubject(materiaId);
+      window.showToast?.(`Materia "${materiaName}" eliminada exitosamente de Supabase 🗑️`, 'info');
+      window.dispatchEvent(new CustomEvent('databaseChanged'));
+      return true;
+    } catch (err) {
+      console.error('[AdminManager] Error al eliminar materia:', err);
+      const errMsg = err?.message || err?.details || String(err);
+      window.showToast?.(`❌ Error al eliminar de Supabase: ${errMsg}`, 'error');
+      alert(`⚠️ Error al eliminar la materia de Supabase:\n\n${errMsg}`);
+      return false;
+    }
   }
 
   // EXPORTAR RESPALDO JSON

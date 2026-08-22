@@ -395,20 +395,32 @@ class LegalDatabase {
 
     // Calcular conteo dinámico de documentos desde Supabase
     const allDocs = await this.getAllDocuments();
+    const normalize = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
     return subjects.map(sub => {
-      const count = allDocs.filter(d =>
-        (d.subjectId === sub.id ||
-         (d.subject && d.subject.toLowerCase() === sub.name.toLowerCase()) ||
-         (d.subject && d.subject.toLowerCase() === (sub.nombre || '').toLowerCase())) &&
-        d.verificationStatus !== 'Rechazado'
-      ).length;
+      const subIdNorm = normalize(sub.id);
+      const subNameNorm = normalize(sub.name || sub.nombre);
+
+      const count = allDocs.filter(d => {
+        if (d.verificationStatus === 'Rechazado') return false;
+        const docSubIdNorm = normalize(d.subjectId);
+        const docSubNorm = normalize(d.subject);
+
+        return (
+          docSubIdNorm === subIdNorm ||
+          docSubNorm === subNameNorm ||
+          (subIdNorm && docSubNorm.includes(subIdNorm)) ||
+          (subNameNorm && (docSubNorm.includes(subNameNorm) || subNameNorm.includes(docSubNorm)))
+        );
+      }).length;
+
       return { ...sub, count };
     });
   }
 
   /**
    * Inserta una nueva materia en Supabase en la tabla 'materias'.
-   * Envía ÚNICAMENTE la propiedad 'nombre' para evitar el error '400 Bad Request'.
+   * Usa: await supabase.from('materias').insert([{ nombre: valorDelInput }]);
    */
   async addSubject(subjectData) {
     await this.initPromise;
@@ -431,23 +443,31 @@ class LegalDatabase {
       return null;
     }
 
-    // 1. Enviar ÚNICAMENTE la propiedad 'nombre' (sin id, sin timestamps, sin nulls)
-    const { data, error } = await supabase
-      .from(TABLE_SUBJECTS)
-      .insert([{ nombre: nombreLimpio }]);
+    try {
+      // Inserción asíncrona en Supabase
+      const { data, error } = await supabase
+        .from('materias')
+        .insert([{ nombre: nombreLimpio }])
+        .select();
 
-    // 2. Capturar cualquier error y alertar
-    if (error) {
-      console.error('Error al insertar materia:', error);
-      alert('No se pudo agregar la materia: ' + error.message);
+      if (error) {
+        console.error('Error al insertar materia en Supabase:', error);
+        alert('No se pudo agregar la materia: ' + (error.message || error.details || 'Error desconocido'));
+        return null;
+      }
+
+      console.log('✅ Materia agregada con éxito en Supabase:', nombreLimpio);
+      return data && data[0] ? data[0] : { nombre: nombreLimpio };
+    } catch (err) {
+      console.error('Excepción al insertar materia en Supabase:', err);
+      alert('Error al agregar materia: ' + (err.message || err));
       return null;
     }
-
-    return data && data[0] ? data[0] : { nombre: nombreLimpio };
   }
 
   /**
    * Elimina una materia de la tabla 'materias' en Supabase por su ID.
+   * Usa: await supabase.from('materias').delete().eq('id', materiaId);
    */
   async deleteSubject(id) {
     await this.initPromise;
@@ -457,17 +477,23 @@ class LegalDatabase {
       throw new Error('No hay conexión con Supabase. Verifica tu conexión a internet.');
     }
 
-    const { error } = await supabase
-      .from(TABLE_SUBJECTS)
-      .delete()
-      .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('materias')
+        .delete()
+        .eq('id', id);
 
-    if (error) {
-      console.error('[Supabase DB] Error al eliminar materia en Supabase:', error);
-      throw new Error(error.message || error.details || 'No se pudo eliminar la materia de Supabase.');
+      if (error) {
+        console.error('[Supabase DB] Error al eliminar materia en Supabase:', error);
+        throw new Error(error.message || error.details || 'No se pudo eliminar la materia de Supabase.');
+      }
+
+      console.log(`✅ Materia con ID "${id}" eliminada exitosamente de Supabase.`);
+      return true;
+    } catch (err) {
+      console.error('[Supabase DB] Excepción al eliminar materia:', err);
+      throw err;
     }
-
-    return true;
   }
 
   /* ==========================================================================
