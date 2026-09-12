@@ -11,11 +11,27 @@
 
 -- 1. Crear la tabla 'materias' si no existe
 CREATE TABLE IF NOT EXISTS public.materias (
-  id   TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  icon TEXT DEFAULT 'book-open',
-  desc TEXT DEFAULT ''
+  id          TEXT PRIMARY KEY,
+  nombre      TEXT NOT NULL,
+  name        TEXT,
+  icono       TEXT DEFAULT 'book-open',
+  icon        TEXT DEFAULT 'book-open',
+  descripcion TEXT DEFAULT '',
+  "desc"      TEXT DEFAULT ''
 );
+
+-- Si la tabla ya existía, asegurar que las columnas 'nombre' y 'name' existan
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='materias' AND column_name='nombre') THEN
+    ALTER TABLE public.materias ADD COLUMN nombre TEXT;
+    UPDATE public.materias SET nombre = name WHERE nombre IS NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='materias' AND column_name='name') THEN
+    ALTER TABLE public.materias ADD COLUMN name TEXT;
+    UPDATE public.materias SET name = nombre WHERE name IS NULL;
+  END IF;
+END $$;
 
 -- 2. Habilitar Row Level Security (recomendado)
 ALTER TABLE public.materias ENABLE ROW LEVEL SECURITY;
@@ -59,21 +75,41 @@ END $$;
 
 -- 5. Insertar las 13 materias jurídicas oficiales
 --    (se usa ON CONFLICT DO NOTHING para evitar duplicados en re-ejecuciones)
-INSERT INTO public.materias (id, name, icon, desc) VALUES
-  ('constitucional',  'Derecho Constitucional',  'scale',          'Estructura del Estado, derechos fundamentales y garantías individuales.'),
-  ('penal',           'Derecho Penal',            'shield-alert',   'Delitos, penas, medidas de seguridad y sistema acusatorio.'),
-  ('civil',           'Derecho Civil',            'users',          'Personas, familia, bienes, sucesiones, obligaciones y contratos.'),
-  ('mercantil',       'Derecho Mercantil',        'briefcase',      'Actos de comercio, sociedades mercantiles y títulos de crédito.'),
-  ('laboral',         'Derecho Laboral',          'hammer',         'Relaciones individuales y colectivas de trabajo, seguridad social.'),
-  ('administrativo',  'Derecho Administrativo',  'landmark',       'Organización de la administración pública y procedimiento administrativo.'),
-  ('procesal',        'Derecho Procesal',         'file-text',      'Teoría general del proceso, juicio oral y derecho procesal civil y penal.'),
-  ('internacional',   'Derecho Internacional',   'globe',          'Derecho internacional público, privado y tratados internacionales.'),
-  ('fiscal',          'Derecho Fiscal',           'calculator',     'Contribuciones, Código Fiscal de la Federación y defensa fiscal.'),
-  ('derechos_humanos','Derechos Humanos',         'heart-handshake','Sistemas universal e interamericano de protección a derechos humanos.'),
-  ('teoria_derecho',  'Teoría del Derecho',       'book-open',      'Filosofía jurídica, epistemología, lógica y argumentación jurídica.'),
-  ('historia_derecho','Historia del Derecho',     'hourglass',      'Evolución histórica de las instituciones jurídicas en México.'),
-  ('otras',           'Otras materias',           'folder-plus',    'Derecho ambiental, agrario, bancario, electoral y nuevas ramas.')
+INSERT INTO public.materias (id, nombre, name, icono, icon, descripcion, "desc") VALUES
+  ('constitucional',  'Derecho Constitucional',  'Derecho Constitucional',  'scale',          'scale',          'Estructura del Estado, derechos fundamentales y garantías individuales.', 'Estructura del Estado, derechos fundamentales y garantías individuales.'),
+  ('penal',           'Derecho Penal',            'Derecho Penal',            'shield-alert',   'shield-alert',   'Delitos, penas, medidas de seguridad y sistema acusatorio.', 'Delitos, penas, medidas de seguridad y sistema acusatorio.'),
+  ('civil',           'Derecho Civil',            'Derecho Civil',            'users',          'users',          'Personas, familia, bienes, sucesiones, obligaciones y contratos.', 'Personas, familia, bienes, sucesiones, obligaciones y contratos.'),
+  ('mercantil',       'Derecho Mercantil',        'Derecho Mercantil',        'briefcase',      'briefcase',      'Actos de comercio, sociedades mercantiles y títulos de crédito.', 'Actos de comercio, sociedades mercantiles y títulos de crédito.'),
+  ('laboral',         'Derecho Laboral',          'Derecho Laboral',          'hammer',         'hammer',         'Relaciones individuales y colectivas de trabajo, seguridad social.', 'Relaciones individuales y colectivas de trabajo, seguridad social.'),
+  ('administrativo',  'Derecho Administrativo',  'Derecho Administrativo',  'landmark',       'landmark',       'Organización de la administración pública y procedimiento administrativo.', 'Organización de la administración pública y procedimiento administrativo.'),
+  ('procesal',        'Derecho Procesal',         'Derecho Procesal',         'file-text',      'file-text',      'Teoría general del proceso, juicio oral y derecho procesal civil y penal.', 'Teoría general del proceso, juicio oral y derecho procesal civil y penal.'),
+  ('internacional',   'Derecho Internacional',   'Derecho Internacional',   'globe',          'globe',          'Derecho internacional público, privado y tratados internacionales.', 'Derecho internacional público, privado y tratados internacionales.'),
+  ('fiscal',          'Derecho Fiscal',           'Derecho Fiscal',           'calculator',     'calculator',     'Contribuciones, Código Fiscal de la Federación y defensa fiscal.', 'Contribuciones, Código Fiscal de la Federación y defensa fiscal.'),
+  ('derechos_humanos','Derechos Humanos',         'Derechos Humanos',         'heart-handshake','heart-handshake','Sistemas universal e interamericano de protección a derechos humanos.', 'Sistemas universal e interamericano de protección a derechos humanos.'),
+  ('teoria_derecho',  'Teoría del Derecho',       'Derecho Teoría',           'book-open',      'book-open',      'Filosofía jurídica, epistemología, lógica y argumentación jurídica.', 'Filosofía jurídica, epistemología, lógica y argumentación jurídica.'),
+  ('historia_derecho','Historia del Derecho',     'Historia del Derecho',     'hourglass',      'hourglass',      'Evolución histórica de las instituciones jurídicas en México.', 'Evolución histórica de las instituciones jurídicas en México.'),
+  ('otras',           'Otras materias',           'Otras materias',           'folder-plus',    'folder-plus',    'Derecho ambiental, agrario, bancario, electoral y nuevas ramas.', 'Derecho ambiental, agrario, bancario, electoral y nuevas ramas.')
 ON CONFLICT (id) DO NOTHING;
 
--- 6. Verificar resultado
+-- 6. Habilitar Supabase Realtime para las tablas 'documentos' y 'materias'
+ALTER TABLE public.materias REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+  -- Agregar 'materias' a la publicación de realtime si no está agregada
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.materias;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL;
+  END;
+
+  -- Agregar 'documentos' a la publicación de realtime si no está agregada
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.documentos;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL;
+  END;
+END $$;
+
+-- 7. Verificar resultado
 SELECT id, name FROM public.materias ORDER BY name;

@@ -69,8 +69,8 @@ Y abrir `http://localhost:8000` en tu navegador.
 6. **Apuntes y Materiales (`#apuntes`)**:
    - Cuadros sinópticos de teoría del delito, resúmenes de derecho procesal y guías temáticas de estudio.
 
-7. **Formatos y Ejemplos (`#formatos`)**:
-   - Machotes prácticos listos para consultar, copiar y descargar:
+7. **Formatos y Modelos Jurídicos (`#formatos`)**:
+   - Formatos prácticos listos para consultar, copiar y descargar:
      * Demanda de Juicio de Amparo Indirecto
      * Demanda Ordinaria Civil
      * Contrato de Arrendamiento de Inmueble (según Código Civil de Durango)
@@ -125,7 +125,7 @@ Toda la información, PDFs subidos, cambios de estado y materias se guardan de f
 | Función | Estudiante 🎓 | Administrador ⚖️ |
 | :--- | :---: | :---: |
 | Consultar y buscar documentos | ✅ | ✅ |
-| Leer artículos y machotes en visor | ✅ | ✅ |
+| Leer artículos y formatos en visor | ✅ | ✅ |
 | Descargar PDFs y textos legales | ✅ | ✅ |
 | Enviar nuevos PDFs a revisión | ✅ | ✅ |
 | Ver estado de sus propios envíos | ✅ | ✅ |
